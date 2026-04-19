@@ -2760,6 +2760,12 @@ let currentOverlaySize = 22;
 
 function openTextEditor() {
   const fileInput = document.getElementById("post-file");
+  // If reel is loaded, use the reel thumbnail URL
+  if (slideshowFiles.length > 0 && reelImageUrls.length > 0) {
+    const url = reelImageUrls[reelThumbnailIdx] || reelImageUrls[0];
+    openTextEditorWithUrl(url, false);
+    return;
+  }
   if (!fileInput.files[0]) return;
   const file = fileInput.files[0];
   const url = URL.createObjectURL(file);
@@ -3479,93 +3485,57 @@ function stopMusicPreview() {
   document.querySelectorAll("[id^='play-btn-']").forEach(b => { if (b.textContent === "⏸") b.textContent = "▶"; });
 }
 
-// ── CURATED TRACK LIBRARY (80 royalty-free tracks) ────────────────
+// ── CURATED TRACK LIBRARY (royalty-free tracks) ─────────────────
 const CURATED_TRACKS = [
   // 🔥 HYPE
-  {id:"h01",title:"Stadium Anthem",artist:"Mixkit",mood:"Hype",genre:"Electronic",duration:"2:15",tags:["hype","energy","sport","workout"],url:"https://assets.mixkit.co/music/preview/mixkit-stadium-anthem-337.mp3"},
-  {id:"h02",title:"Epic Battle",artist:"Mixkit",mood:"Hype",genre:"Cinematic",duration:"2:30",tags:["hype","epic","cinematic","action"],url:"https://assets.mixkit.co/music/preview/mixkit-epic-battle-2264.mp3"},
-  {id:"h03",title:"Driving Force",artist:"Mixkit",mood:"Hype",genre:"Rock",duration:"2:00",tags:["hype","rock","drive","energy"],url:"https://assets.mixkit.co/music/preview/mixkit-driving-force-2524.mp3"},
-  {id:"h04",title:"Pump It Up",artist:"Mixkit",mood:"Hype",genre:"Electronic",duration:"1:55",tags:["hype","workout","gym","pump"],url:"https://assets.mixkit.co/music/preview/mixkit-pump-it-up-279.mp3"},
-  {id:"h05",title:"Game Soundtrack",artist:"Mixkit",mood:"Hype",genre:"Electronic",duration:"2:20",tags:["hype","game","action"],url:"https://assets.mixkit.co/music/preview/mixkit-game-level-music-689.mp3"},
-  {id:"h06",title:"Tech House Beat",artist:"Mixkit",mood:"Hype",genre:"Electronic",duration:"2:10",tags:["hype","electronic","beat","club"],url:"https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3"},
-  {id:"h07",title:"Fast Lane",artist:"Mixkit",mood:"Hype",genre:"Rock",duration:"2:05",tags:["hype","fast","cars","speed"],url:"https://assets.mixkit.co/music/preview/mixkit-fast-forward-688.mp3"},
-  {id:"h08",title:"Street Hip Hop",artist:"Mixkit",mood:"Hype",genre:"Hip Hop",duration:"2:15",tags:["hype","hip hop","street","rap"],url:"https://assets.mixkit.co/music/preview/mixkit-street-hip-hop-492.mp3"},
+  {id:"h01",title:"Action Strike",artist:"Free Music",mood:"Hype",genre:"Electronic",duration:"2:30",tags:["hype","energy","action","sport"],url:"https://www.bensound.com/bensound-music/bensound-actionable.mp3"},
+  {id:"h02",title:"Epic Cinematic",artist:"Free Music",mood:"Hype",genre:"Cinematic",duration:"2:15",tags:["hype","epic","cinematic","power"],url:"https://www.bensound.com/bensound-music/bensound-epic.mp3"},
+  {id:"h03",title:"Energetic Rock",artist:"Free Music",mood:"Hype",genre:"Rock",duration:"2:00",tags:["hype","rock","energy","guitar"],url:"https://www.bensound.com/bensound-music/bensound-extremeaction.mp3"},
+  {id:"h04",title:"Dubstep Hype",artist:"Free Music",mood:"Hype",genre:"Electronic",duration:"2:20",tags:["hype","dubstep","bass","drop"],url:"https://www.bensound.com/bensound-music/bensound-dubstep.mp3"},
+  {id:"h05",title:"Punky",artist:"Free Music",mood:"Hype",genre:"Rock",duration:"1:55",tags:["hype","punk","rock","attitude"],url:"https://www.bensound.com/bensound-music/bensound-punky.mp3"},
   // 😌 CHILL
-  {id:"c01",title:"Lofi Chill",artist:"Mixkit",mood:"Chill",genre:"Lofi",duration:"2:45",tags:["chill","lofi","relax","study"],url:"https://assets.mixkit.co/music/preview/mixkit-life-is-a-dream-837.mp3"},
-  {id:"c02",title:"Dreamy Beats",artist:"Mixkit",mood:"Chill",genre:"Lofi",duration:"2:30",tags:["chill","dreamy","lofi","vibe"],url:"https://assets.mixkit.co/music/preview/mixkit-dreamy-feel-31.mp3"},
-  {id:"c03",title:"Sunset Vibes",artist:"Mixkit",mood:"Chill",genre:"Ambient",duration:"3:00",tags:["chill","sunset","relax","ambient"],url:"https://assets.mixkit.co/music/preview/mixkit-sunset-beach-702.mp3"},
-  {id:"c04",title:"Peaceful Piano",artist:"Mixkit",mood:"Chill",genre:"Piano",duration:"2:50",tags:["chill","piano","peaceful","calm"],url:"https://assets.mixkit.co/music/preview/mixkit-serene-view-443.mp3"},
-  {id:"c05",title:"Ocean Waves",artist:"Mixkit",mood:"Chill",genre:"Ambient",duration:"3:10",tags:["chill","ocean","ambient","nature"],url:"https://assets.mixkit.co/music/preview/mixkit-quiet-contemplation-703.mp3"},
-  {id:"c06",title:"Midnight Jazz",artist:"Mixkit",mood:"Chill",genre:"Jazz",duration:"2:40",tags:["chill","jazz","night","smooth"],url:"https://assets.mixkit.co/music/preview/mixkit-jazz-feel-169.mp3"},
-  {id:"c07",title:"Coffee Shop",artist:"Mixkit",mood:"Chill",genre:"Acoustic",duration:"2:55",tags:["chill","acoustic","coffee","relax"],url:"https://assets.mixkit.co/music/preview/mixkit-casual-conversation-107.mp3"},
-  {id:"c08",title:"Floating",artist:"Mixkit",mood:"Chill",genre:"Electronic",duration:"2:35",tags:["chill","float","electronic","ambient"],url:"https://assets.mixkit.co/music/preview/mixkit-lost-in-dreams-1001.mp3"},
+  {id:"c01",title:"Dreams",artist:"Free Music",mood:"Chill",genre:"Ambient",duration:"3:10",tags:["chill","dream","ambient","relax"],url:"https://www.bensound.com/bensound-music/bensound-dreams.mp3"},
+  {id:"c02",title:"Romantic",artist:"Free Music",mood:"Chill",genre:"Piano",duration:"2:55",tags:["chill","romantic","piano","soft"],url:"https://www.bensound.com/bensound-music/bensound-romantic.mp3"},
+  {id:"c03",title:"Sunny",artist:"Free Music",mood:"Chill",genre:"Acoustic",duration:"2:40",tags:["chill","sunny","acoustic","warm"],url:"https://www.bensound.com/bensound-music/bensound-sunny.mp3"},
+  {id:"c04",title:"A New Beginning",artist:"Free Music",mood:"Chill",genre:"Ambient",duration:"3:20",tags:["chill","new","beginning","ambient"],url:"https://www.bensound.com/bensound-music/bensound-anewbeginning.mp3"},
+  {id:"c05",title:"Once Again",artist:"Free Music",mood:"Chill",genre:"Lofi",duration:"2:50",tags:["chill","lofi","again","relax"],url:"https://www.bensound.com/bensound-music/bensound-onceagain.mp3"},
+  {id:"c06",title:"Relaxing",artist:"Free Music",mood:"Chill",genre:"Ambient",duration:"3:05",tags:["chill","relax","calm","peaceful"],url:"https://www.bensound.com/bensound-music/bensound-relaxing.mp3"},
   // 😄 HAPPY
-  {id:"hap01",title:"Good Morning",artist:"Mixkit",mood:"Happy",genre:"Pop",duration:"2:00",tags:["happy","morning","upbeat","fun"],url:"https://assets.mixkit.co/music/preview/mixkit-happy-bells-notification-937.mp3"},
-  {id:"hap02",title:"Sunny Day",artist:"Mixkit",mood:"Happy",genre:"Pop",duration:"1:55",tags:["happy","sunny","fun","bright"],url:"https://assets.mixkit.co/music/preview/mixkit-skipping-the-light-fantastic-1001.mp3"},
-  {id:"hap03",title:"Fun Times",artist:"Mixkit",mood:"Happy",genre:"Ukulele",duration:"1:50",tags:["happy","fun","ukulele","cheerful"],url:"https://assets.mixkit.co/music/preview/mixkit-ukelele-fun-154.mp3"},
-  {id:"hap04",title:"Party Starter",artist:"Mixkit",mood:"Happy",genre:"Pop",duration:"2:10",tags:["happy","party","dance","fun"],url:"https://assets.mixkit.co/music/preview/mixkit-feeling-happy-5.mp3"},
-  {id:"hap05",title:"Summer Pop",artist:"Mixkit",mood:"Happy",genre:"Pop",duration:"2:15",tags:["happy","summer","pop","beach"],url:"https://assets.mixkit.co/music/preview/mixkit-summer-fun-13.mp3"},
-  {id:"hap06",title:"Bounce",artist:"Mixkit",mood:"Happy",genre:"Electronic",duration:"2:00",tags:["happy","bounce","dance","fun"],url:"https://assets.mixkit.co/music/preview/mixkit-a-very-happy-christmas-897.mp3"},
-  {id:"hap07",title:"Positive Vibes",artist:"Mixkit",mood:"Happy",genre:"Pop",duration:"1:45",tags:["happy","positive","upbeat","cheerful"],url:"https://assets.mixkit.co/music/preview/mixkit-positive-vibes-2567.mp3"},
-  {id:"hap08",title:"Kids Fun",artist:"Mixkit",mood:"Happy",genre:"Pop",duration:"1:40",tags:["happy","kids","fun","playful"],url:"https://assets.mixkit.co/music/preview/mixkit-kids-having-fun-1003.mp3"},
+  {id:"hap01",title:"Cute",artist:"Free Music",mood:"Happy",genre:"Pop",duration:"2:00",tags:["happy","cute","fun","upbeat"],url:"https://www.bensound.com/bensound-music/bensound-cute.mp3"},
+  {id:"hap02",title:"Happy Rock",artist:"Free Music",mood:"Happy",genre:"Rock",duration:"1:55",tags:["happy","rock","fun","upbeat"],url:"https://www.bensound.com/bensound-music/bensound-happyrock.mp3"},
+  {id:"hap03",title:"Ukulele",artist:"Free Music",mood:"Happy",genre:"Ukulele",duration:"1:50",tags:["happy","ukulele","fun","summer"],url:"https://www.bensound.com/bensound-music/bensound-ukulele.mp3"},
+  {id:"hap04",title:"Summer",artist:"Free Music",mood:"Happy",genre:"Pop",duration:"2:10",tags:["happy","summer","fun","bright"],url:"https://www.bensound.com/bensound-music/bensound-summer.mp3"},
+  {id:"hap05",title:"Smile",artist:"Free Music",mood:"Happy",genre:"Pop",duration:"1:45",tags:["happy","smile","cheerful","positive"],url:"https://www.bensound.com/bensound-music/bensound-smile.mp3"},
   // ❤️ ROMANTIC
-  {id:"r01",title:"Romantic Guitar",artist:"Mixkit",mood:"Romantic",genre:"Acoustic",duration:"3:00",tags:["romantic","guitar","love","tender"],url:"https://assets.mixkit.co/music/preview/mixkit-romantic-classical-guitar-501.mp3"},
-  {id:"r02",title:"Love Story",artist:"Mixkit",mood:"Romantic",genre:"Piano",duration:"2:50",tags:["romantic","piano","love","emotional"],url:"https://assets.mixkit.co/music/preview/mixkit-love-story-339.mp3"},
-  {id:"r03",title:"Tender Moment",artist:"Mixkit",mood:"Romantic",genre:"Cinematic",duration:"2:45",tags:["romantic","tender","moment","cinematic"],url:"https://assets.mixkit.co/music/preview/mixkit-tender-moment-403.mp3"},
-  {id:"r04",title:"Sweet Melody",artist:"Mixkit",mood:"Romantic",genre:"Piano",duration:"3:05",tags:["romantic","sweet","melody","soft"],url:"https://assets.mixkit.co/music/preview/mixkit-sweet-melody-491.mp3"},
-  {id:"r05",title:"Candlelight",artist:"Mixkit",mood:"Romantic",genre:"Jazz",duration:"2:55",tags:["romantic","jazz","candlelight","evening"],url:"https://assets.mixkit.co/music/preview/mixkit-candlelight-dinner-702.mp3"},
-  {id:"r06",title:"First Dance",artist:"Mixkit",mood:"Romantic",genre:"Acoustic",duration:"3:10",tags:["romantic","wedding","dance","love"],url:"https://assets.mixkit.co/music/preview/mixkit-first-love-492.mp3"},
-  {id:"r07",title:"Heartbeat",artist:"Mixkit",mood:"Romantic",genre:"Electronic",duration:"2:40",tags:["romantic","heartbeat","love","electronic"],url:"https://assets.mixkit.co/music/preview/mixkit-deep-love-491.mp3"},
-  {id:"r08",title:"Moonlight Serenade",artist:"Mixkit",mood:"Romantic",genre:"Classical",duration:"3:15",tags:["romantic","moonlight","classical","serenade"],url:"https://assets.mixkit.co/music/preview/mixkit-moonlight-serenade-302.mp3"},
+  {id:"r01",title:"Love",artist:"Free Music",mood:"Romantic",genre:"Piano",duration:"3:00",tags:["romantic","love","piano","sweet"],url:"https://www.bensound.com/bensound-music/bensound-love.mp3"},
+  {id:"r02",title:"Tender",artist:"Free Music",mood:"Romantic",genre:"Acoustic",duration:"2:50",tags:["romantic","tender","acoustic","gentle"],url:"https://www.bensound.com/bensound-music/bensound-tender.mp3"},
+  {id:"r03",title:"Sweet",artist:"Free Music",mood:"Romantic",genre:"Piano",duration:"2:45",tags:["romantic","sweet","piano","soft"],url:"https://www.bensound.com/bensound-music/bensound-sweet.mp3"},
+  {id:"r04",title:"Piano Moment",artist:"Free Music",mood:"Romantic",genre:"Piano",duration:"3:15",tags:["romantic","piano","moment","beautiful"],url:"https://www.bensound.com/bensound-music/bensound-pianomoment.mp3"},
   // 🎭 DRAMATIC
-  {id:"d01",title:"Epic Cinematic",artist:"Mixkit",mood:"Dramatic",genre:"Cinematic",duration:"2:30",tags:["dramatic","epic","cinematic","intense"],url:"https://assets.mixkit.co/music/preview/mixkit-epic-cinematic-opening-drama-2252.mp3"},
-  {id:"d02",title:"Tension Build",artist:"Mixkit",mood:"Dramatic",genre:"Cinematic",duration:"2:15",tags:["dramatic","tension","suspense","build"],url:"https://assets.mixkit.co/music/preview/mixkit-dramatic-moments-505.mp3"},
-  {id:"d03",title:"Dark Orchestra",artist:"Mixkit",mood:"Dramatic",genre:"Classical",duration:"2:45",tags:["dramatic","dark","orchestra","intense"],url:"https://assets.mixkit.co/music/preview/mixkit-dark-logo-491.mp3"},
-  {id:"d04",title:"Cinematic Rise",artist:"Mixkit",mood:"Dramatic",genre:"Cinematic",duration:"2:20",tags:["dramatic","cinematic","rise","inspiring"],url:"https://assets.mixkit.co/music/preview/mixkit-cinematic-rise-547.mp3"},
-  {id:"d05",title:"Suspense",artist:"Mixkit",mood:"Dramatic",genre:"Cinematic",duration:"2:10",tags:["dramatic","suspense","thriller","dark"],url:"https://assets.mixkit.co/music/preview/mixkit-suspense-undercurrent-subtlety-2542.mp3"},
-  {id:"d06",title:"Powerful Moment",artist:"Mixkit",mood:"Dramatic",genre:"Cinematic",duration:"2:35",tags:["dramatic","powerful","moment","cinematic"],url:"https://assets.mixkit.co/music/preview/mixkit-powerful-moment-337.mp3"},
+  {id:"d01",title:"Epic",artist:"Free Music",mood:"Dramatic",genre:"Cinematic",duration:"2:30",tags:["dramatic","epic","cinematic","intense"],url:"https://www.bensound.com/bensound-music/bensound-epic.mp3"},
+  {id:"d02",title:"Inspiring",artist:"Free Music",mood:"Dramatic",genre:"Cinematic",duration:"2:25",tags:["dramatic","inspiring","rise","power"],url:"https://www.bensound.com/bensound-music/bensound-inspiring.mp3"},
+  {id:"d03",title:"Evolution",artist:"Free Music",mood:"Dramatic",genre:"Cinematic",duration:"2:40",tags:["dramatic","evolution","cinematic","build"],url:"https://www.bensound.com/bensound-music/bensound-evolution.mp3"},
+  {id:"d04",title:"Sci-Fi",artist:"Free Music",mood:"Dramatic",genre:"Cinematic",duration:"2:15",tags:["dramatic","sci-fi","space","intense"],url:"https://www.bensound.com/bensound-music/bensound-scifi.mp3"},
   // 😂 FUNNY
-  {id:"f01",title:"Comedy Walk",artist:"Mixkit",mood:"Funny",genre:"Comedy",duration:"1:30",tags:["funny","comedy","silly","playful"],url:"https://assets.mixkit.co/music/preview/mixkit-comedy-walk-484.mp3"},
-  {id:"f02",title:"Cartoon Chaos",artist:"Mixkit",mood:"Funny",genre:"Comedy",duration:"1:25",tags:["funny","cartoon","silly","chaos"],url:"https://assets.mixkit.co/music/preview/mixkit-cartoon-birds-491.mp3"},
-  {id:"f03",title:"Quirky Beat",artist:"Mixkit",mood:"Funny",genre:"Comedy",duration:"1:45",tags:["funny","quirky","beat","silly"],url:"https://assets.mixkit.co/music/preview/mixkit-quirky-nerd-life-482.mp3"},
-  {id:"f04",title:"Happy Go Lucky",artist:"Mixkit",mood:"Funny",genre:"Comedy",duration:"1:35",tags:["funny","happy","silly","fun"],url:"https://assets.mixkit.co/music/preview/mixkit-happy-go-lucky-491.mp3"},
+  {id:"f01",title:"Funny Song",artist:"Free Music",mood:"Funny",genre:"Comedy",duration:"1:30",tags:["funny","comedy","silly","playful"],url:"https://www.bensound.com/bensound-music/bensound-funnysong.mp3"},
+  {id:"f02",title:"Quirky",artist:"Free Music",mood:"Funny",genre:"Comedy",duration:"1:45",tags:["funny","quirky","silly","fun"],url:"https://www.bensound.com/bensound-music/bensound-quirky.mp3"},
   // 🎤 HIP HOP
-  {id:"hip01",title:"City Nights",artist:"Mixkit",mood:"Hip Hop",genre:"Hip Hop",duration:"2:20",tags:["hip hop","rap","city","nights"],url:"https://assets.mixkit.co/music/preview/mixkit-hip-hop-02-738.mp3"},
-  {id:"hip02",title:"Trap Beat",artist:"Mixkit",mood:"Hip Hop",genre:"Trap",duration:"2:10",tags:["hip hop","trap","beat","bass"],url:"https://assets.mixkit.co/music/preview/mixkit-trap-ambiance-159.mp3"},
-  {id:"hip03",title:"Old School",artist:"Mixkit",mood:"Hip Hop",genre:"Hip Hop",duration:"2:25",tags:["hip hop","old school","classic","rap"],url:"https://assets.mixkit.co/music/preview/mixkit-old-school-hip-hop-491.mp3"},
-  {id:"hip04",title:"Bass Drop",artist:"Mixkit",mood:"Hip Hop",genre:"Electronic",duration:"2:15",tags:["hip hop","bass","drop","electronic"],url:"https://assets.mixkit.co/music/preview/mixkit-bass-drop-2585.mp3"},
-  {id:"hip05",title:"Freestyle",artist:"Mixkit",mood:"Hip Hop",genre:"Hip Hop",duration:"2:30",tags:["hip hop","freestyle","rap","flow"],url:"https://assets.mixkit.co/music/preview/mixkit-hip-hop-03-738.mp3"},
-  {id:"hip06",title:"Street Life",artist:"Mixkit",mood:"Hip Hop",genre:"Hip Hop",duration:"2:00",tags:["hip hop","street","urban","life"],url:"https://assets.mixkit.co/music/preview/mixkit-street-hip-hop-492.mp3"},
+  {id:"hip01",title:"Hip Jazz",artist:"Free Music",mood:"Hip Hop",genre:"Hip Hop",duration:"2:20",tags:["hip hop","jazz","beat","cool"],url:"https://www.bensound.com/bensound-music/bensound-hipjazz.mp3"},
+  {id:"hip02",title:"Groove Grove",artist:"Free Music",mood:"Hip Hop",genre:"Hip Hop",duration:"2:15",tags:["hip hop","groove","beat","bass"],url:"https://www.bensound.com/bensound-music/bensound-groovegrove.mp3"},
   // 🎵 POP
-  {id:"p01",title:"Pop Anthem",artist:"Mixkit",mood:"Pop",genre:"Pop",duration:"2:20",tags:["pop","anthem","upbeat","catchy"],url:"https://assets.mixkit.co/music/preview/mixkit-pop-anthem-491.mp3"},
-  {id:"p02",title:"Dance Floor",artist:"Mixkit",mood:"Pop",genre:"Pop",duration:"2:15",tags:["pop","dance","club","floor"],url:"https://assets.mixkit.co/music/preview/mixkit-dance-with-me-2547.mp3"},
-  {id:"p03",title:"Teen Pop",artist:"Mixkit",mood:"Pop",genre:"Pop",duration:"2:00",tags:["pop","teen","catchy","fun"],url:"https://assets.mixkit.co/music/preview/mixkit-fresh-pop-2252.mp3"},
-  {id:"p04",title:"Synth Pop",artist:"Mixkit",mood:"Pop",genre:"Synth Pop",duration:"2:25",tags:["pop","synth","electronic","retro"],url:"https://assets.mixkit.co/music/preview/mixkit-synth-pop-491.mp3"},
-  {id:"p05",title:"Radio Hit",artist:"Mixkit",mood:"Pop",genre:"Pop",duration:"2:10",tags:["pop","radio","hit","catchy"],url:"https://assets.mixkit.co/music/preview/mixkit-radio-hit-491.mp3"},
+  {id:"p01",title:"Pop Dance",artist:"Free Music",mood:"Pop",genre:"Pop",duration:"2:20",tags:["pop","dance","upbeat","catchy"],url:"https://www.bensound.com/bensound-music/bensound-popdance.mp3"},
+  {id:"p02",title:"Creative Minds",artist:"Free Music",mood:"Pop",genre:"Pop",duration:"2:10",tags:["pop","creative","upbeat","fun"],url:"https://www.bensound.com/bensound-music/bensound-creativeminds.mp3"},
+  {id:"p03",title:"Energy",artist:"Free Music",mood:"Pop",genre:"Pop",duration:"2:05",tags:["pop","energy","upbeat","dance"],url:"https://www.bensound.com/bensound-music/bensound-energy.mp3"},
   // 🎷 JAZZ
-  {id:"j01",title:"Smooth Jazz",artist:"Mixkit",mood:"Jazz",genre:"Jazz",duration:"3:00",tags:["jazz","smooth","saxophone","cool"],url:"https://assets.mixkit.co/music/preview/mixkit-smooth-jazz-491.mp3"},
-  {id:"j02",title:"Late Night Jazz",artist:"Mixkit",mood:"Jazz",genre:"Jazz",duration:"2:50",tags:["jazz","night","late","cool"],url:"https://assets.mixkit.co/music/preview/mixkit-late-night-drive-491.mp3"},
-  {id:"j03",title:"Swing Time",artist:"Mixkit",mood:"Jazz",genre:"Swing",duration:"2:30",tags:["jazz","swing","fun","classic"],url:"https://assets.mixkit.co/music/preview/mixkit-swing-time-491.mp3"},
-  {id:"j04",title:"Coffee Jazz",artist:"Mixkit",mood:"Jazz",genre:"Jazz",duration:"2:45",tags:["jazz","coffee","relax","morning"],url:"https://assets.mixkit.co/music/preview/mixkit-coffee-jazz-491.mp3"},
+  {id:"j01",title:"Jazz Comedy",artist:"Free Music",mood:"Jazz",genre:"Jazz",duration:"2:30",tags:["jazz","comedy","fun","classic"],url:"https://www.bensound.com/bensound-music/bensound-jazzcomedy.mp3"},
+  {id:"j02",title:"Jazz Cafe",artist:"Free Music",mood:"Jazz",genre:"Jazz",duration:"3:00",tags:["jazz","cafe","smooth","relax"],url:"https://www.bensound.com/bensound-music/bensound-jazzcafe.mp3"},
+  {id:"j03",title:"Jazzy",artist:"Free Music",mood:"Jazz",genre:"Jazz",duration:"2:45",tags:["jazz","smooth","cool","classic"],url:"https://www.bensound.com/bensound-music/bensound-jazzy.mp3"},
   // 🎻 CLASSICAL
-  {id:"cl01",title:"Moonlight Piano",artist:"Mixkit",mood:"Classical",genre:"Classical",duration:"3:20",tags:["classical","piano","moonlight","elegant"],url:"https://assets.mixkit.co/music/preview/mixkit-piano-reflections-22.mp3"},
-  {id:"cl02",title:"String Quartet",artist:"Mixkit",mood:"Classical",genre:"Classical",duration:"2:55",tags:["classical","strings","quartet","elegant"],url:"https://assets.mixkit.co/music/preview/mixkit-string-quartet-491.mp3"},
-  {id:"cl03",title:"Violin Solo",artist:"Mixkit",mood:"Classical",genre:"Classical",duration:"3:00",tags:["classical","violin","solo","beautiful"],url:"https://assets.mixkit.co/music/preview/mixkit-violin-solo-491.mp3"},
-  {id:"cl04",title:"Grand Orchestra",artist:"Mixkit",mood:"Classical",genre:"Classical",duration:"2:40",tags:["classical","orchestra","grand","epic"],url:"https://assets.mixkit.co/music/preview/mixkit-orchestra-491.mp3"},
-  // 🌍 WORLD
-  {id:"w01",title:"Latin Vibes",artist:"Mixkit",mood:"World",genre:"Latin",duration:"2:20",tags:["world","latin","dance","tropical"],url:"https://assets.mixkit.co/music/preview/mixkit-latin-groove-491.mp3"},
-  {id:"w02",title:"Afrobeat",artist:"Mixkit",mood:"World",genre:"Afrobeat",duration:"2:15",tags:["world","afrobeat","africa","dance"],url:"https://assets.mixkit.co/music/preview/mixkit-afrobeat-491.mp3"},
-  {id:"w03",title:"Reggae Sun",artist:"Mixkit",mood:"World",genre:"Reggae",duration:"2:30",tags:["world","reggae","sun","island"],url:"https://assets.mixkit.co/music/preview/mixkit-reggae-491.mp3"},
-  {id:"w04",title:"Tropical House",artist:"Mixkit",mood:"World",genre:"Electronic",duration:"2:10",tags:["world","tropical","house","beach"],url:"https://assets.mixkit.co/music/preview/mixkit-tropical-house-491.mp3"},
+  {id:"cl01",title:"Piano Prelude",artist:"Free Music",mood:"Classical",genre:"Classical",duration:"3:20",tags:["classical","piano","elegant","beautiful"],url:"https://www.bensound.com/bensound-music/bensound-pianoprelude.mp3"},
+  {id:"cl02",title:"Classical",artist:"Free Music",mood:"Classical",genre:"Classical",duration:"2:55",tags:["classical","orchestra","elegant","refined"],url:"https://www.bensound.com/bensound-music/bensound-classical.mp3"},
   // 🎸 ROCK
-  {id:"rock01",title:"Guitar Hero",artist:"Mixkit",mood:"Rock",genre:"Rock",duration:"2:20",tags:["rock","guitar","energy","power"],url:"https://assets.mixkit.co/music/preview/mixkit-guitar-rock-491.mp3"},
-  {id:"rock02",title:"Indie Rock",artist:"Mixkit",mood:"Rock",genre:"Indie Rock",duration:"2:15",tags:["rock","indie","cool","guitar"],url:"https://assets.mixkit.co/music/preview/mixkit-indie-rock-491.mp3"},
-  {id:"rock03",title:"Power Chords",artist:"Mixkit",mood:"Rock",genre:"Rock",duration:"2:00",tags:["rock","power","chords","energy"],url:"https://assets.mixkit.co/music/preview/mixkit-power-chords-491.mp3"},
-  {id:"rock04",title:"Stadium Rock",artist:"Mixkit",mood:"Rock",genre:"Rock",duration:"2:25",tags:["rock","stadium","anthem","crowd"],url:"https://assets.mixkit.co/music/preview/mixkit-stadium-rock-491.mp3"},
-  // 🧘 MEDITATION
-  {id:"med01",title:"Zen Garden",artist:"Mixkit",mood:"Meditation",genre:"Ambient",duration:"4:00",tags:["meditation","zen","calm","nature"],url:"https://assets.mixkit.co/music/preview/mixkit-zen-meditation-491.mp3"},
-  {id:"med02",title:"Deep Breath",artist:"Mixkit",mood:"Meditation",genre:"Ambient",duration:"3:30",tags:["meditation","breath","calm","peaceful"],url:"https://assets.mixkit.co/music/preview/mixkit-deep-meditation-491.mp3"},
-  {id:"med03",title:"Morning Yoga",artist:"Mixkit",mood:"Meditation",genre:"Ambient",duration:"3:45",tags:["meditation","yoga","morning","peaceful"],url:"https://assets.mixkit.co/music/preview/mixkit-morning-yoga-491.mp3"},
+  {id:"rock01",title:"Rock Angel",artist:"Free Music",mood:"Rock",genre:"Rock",duration:"2:20",tags:["rock","guitar","power","energy"],url:"https://www.bensound.com/bensound-music/bensound-rockangel.mp3"},
+  {id:"rock02",title:"Little Idea",artist:"Free Music",mood:"Rock",genre:"Indie Rock",duration:"1:50",tags:["rock","indie","chill","guitar"],url:"https://www.bensound.com/bensound-music/bensound-littleidea.mp3"},
 ];
 
 
