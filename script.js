@@ -2852,9 +2852,97 @@ async function assignBadgeTier(userId) {
 
 // ── SLIDESHOW / REEL MAKER ────────────────────────────────────────
 let slideshowFiles = [];
-let slideshowDuration = 1500; // ms per slide
+let slideshowDuration = 1500;
 let slideshowInterval = null;
 let slideshowCurrentIdx = 0;
+let reelImageUrls = [];
+
+function openReelPicker() {
+  // On iOS, trigger file input then watch for change
+  const input = document.getElementById("slideshow-file");
+  input.value = "";
+  input.click();
+}
+
+function previewSlideshow(input) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  slideshowFiles = files;
+  openReelEditor();
+}
+
+function openReelEditor() {
+  if (slideshowFiles.length === 0) return;
+
+  // Build object URLs
+  reelImageUrls = slideshowFiles.map(f => URL.createObjectURL(f));
+
+  // Build thumb strip
+  const strip = document.getElementById("reel-thumb-strip");
+  strip.innerHTML = "";
+  reelImageUrls.forEach((url, i) => {
+    const thumb = document.createElement("div");
+    thumb.style.cssText = `width:60px;height:60px;border-radius:10px;overflow:hidden;flex-shrink:0;border:2px solid ${i===0?"#ff6b35":"transparent"};cursor:pointer`;
+    thumb.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover"/>`;
+    thumb.onclick = () => jumpToSlide(i);
+    strip.appendChild(thumb);
+  });
+
+  // Show editor
+  document.getElementById("reel-editor").style.display = "flex";
+
+  // Start preview
+  slideshowCurrentIdx = 0;
+  startReelPreview();
+}
+
+function startReelPreview() {
+  if (slideshowInterval) clearInterval(slideshowInterval);
+  showReelSlide(0);
+  slideshowInterval = setInterval(() => {
+    slideshowCurrentIdx = (slideshowCurrentIdx + 1) % reelImageUrls.length;
+    showReelSlide(slideshowCurrentIdx);
+  }, slideshowDuration);
+}
+
+function showReelSlide(idx) {
+  const img = document.getElementById("reel-preview-img");
+  const counter = document.getElementById("reel-slide-counter");
+  const bar = document.getElementById("reel-progress-bar");
+  if (!img) return;
+
+  // Fade transition
+  img.style.opacity = "0";
+  setTimeout(() => {
+    img.src = reelImageUrls[idx] || "";
+    img.style.opacity = "1";
+  }, 150);
+
+  counter.textContent = `${idx+1}/${reelImageUrls.length}`;
+
+  // Animate progress bar
+  bar.style.transition = "none";
+  bar.style.width = "0%";
+  setTimeout(() => {
+    bar.style.transition = `width ${slideshowDuration}ms linear`;
+    bar.style.width = "100%";
+  }, 50);
+
+  // Highlight active thumb
+  document.querySelectorAll("#reel-thumb-strip div").forEach((t, i) => {
+    t.style.border = i === idx ? "2px solid #ff6b35" : "2px solid transparent";
+  });
+}
+
+function jumpToSlide(idx) {
+  slideshowCurrentIdx = idx;
+  if (slideshowInterval) clearInterval(slideshowInterval);
+  showReelSlide(idx);
+  slideshowInterval = setInterval(() => {
+    slideshowCurrentIdx = (slideshowCurrentIdx + 1) % reelImageUrls.length;
+    showReelSlide(slideshowCurrentIdx);
+  }, slideshowDuration);
+}
 
 function setSlideDuration(ms, btn) {
   slideshowDuration = ms;
@@ -2862,66 +2950,37 @@ function setSlideDuration(ms, btn) {
     b.style.border = "1px solid #333";
     b.style.color = "#888";
     b.style.fontWeight = "normal";
+    b.style.borderWidth = "1px";
   });
-  btn.style.border = "1px solid #ff6b35";
+  btn.style.border = "2px solid #ff6b35";
   btn.style.color = "#ff6b35";
   btn.style.fontWeight = "700";
-  // Update preview if playing
-  if (slideshowFiles.length > 0) startSlideshowPreview();
+  startReelPreview();
 }
 
-function previewSlideshow(input) {
-  const files = Array.from(input.files);
-  if (!files.length) return;
-  slideshowFiles = files;
+function closeReelEditor() {
+  if (slideshowInterval) { clearInterval(slideshowInterval); slideshowInterval = null; }
+  document.getElementById("reel-editor").style.display = "none";
+  slideshowFiles = [];
+  reelImageUrls = [];
+  document.getElementById("slideshow-file").value = "";
+}
 
-  // Show controls
-  document.getElementById("slideshow-controls").style.display = "block";
-  document.getElementById("slideshow-count").textContent = files.length;
+function confirmReel() {
+  if (slideshowInterval) { clearInterval(slideshowInterval); slideshowInterval = null; }
+  document.getElementById("reel-editor").style.display = "none";
 
-  // Show thumbnail strip
-  const strip = document.getElementById("slideshow-preview-strip");
-  strip.innerHTML = "";
-  files.forEach((f, i) => {
-    const url = URL.createObjectURL(f);
-    const thumb = document.createElement("div");
-    thumb.style.cssText = "width:54px;height:54px;border-radius:8px;overflow:hidden;flex-shrink:0;border:2px solid transparent;transition:border 0.15s;cursor:pointer";
-    thumb.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover"/>`;
-    thumb.dataset.idx = i;
-    strip.appendChild(thumb);
-  });
-
-  // Show slideshow preview in post-preview area
+  // Show preview in upload screen
+  const firstUrl = reelImageUrls[0];
+  document.getElementById("post-preview").innerHTML = `
+    <div style="position:relative;display:inline-block;width:100%">
+      <img src="${firstUrl}" style="max-width:100%;max-height:200px;border-radius:10px;object-fit:cover"/>
+      <div style="position:absolute;top:8px;left:8px;background:rgba(255,107,53,0.9);color:#fff;font-size:12px;font-weight:700;padding:3px 8px;border-radius:8px">🎞️ ${slideshowFiles.length} photos</div>
+    </div>`;
   document.getElementById("text-overlay-btn-wrap").style.display = "block";
   textOverlay = null;
   document.getElementById("overlay-preview-indicator").style.display = "none";
-  startSlideshowPreview();
-}
-
-function startSlideshowPreview() {
-  if (slideshowInterval) clearInterval(slideshowInterval);
-  slideshowCurrentIdx = 0;
-  showSlide(0);
-  slideshowInterval = setInterval(() => {
-    slideshowCurrentIdx = (slideshowCurrentIdx + 1) % slideshowFiles.length;
-    showSlide(slideshowCurrentIdx);
-  }, slideshowDuration);
-}
-
-function showSlide(idx) {
-  const file = slideshowFiles[idx];
-  if (!file) return;
-  const url = URL.createObjectURL(file);
-  const preview = document.getElementById("post-preview");
-  preview.innerHTML = `
-    <div style="position:relative;width:100%;height:100%">
-      <img src="${url}" style="width:100%;max-height:200px;border-radius:10px;object-fit:cover;transition:opacity 0.3s"/>
-      <div style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.6);color:#fff;font-size:11px;padding:2px 6px;border-radius:8px">${idx+1}/${slideshowFiles.length}</div>
-    </div>`;
-  // Highlight active thumb
-  document.querySelectorAll("#slideshow-preview-strip div").forEach((t, i) => {
-    t.style.border = i === idx ? "2px solid #ff6b35" : "2px solid transparent";
-  });
+  showToast("Reel ready! Fill in details and post 🎞️");
 }
 
 async function buildAndUploadSlideshow() {
