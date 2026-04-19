@@ -1153,7 +1153,25 @@ async function submitPost() {
   const isSensitive = document.getElementById("sensitive-toggle")?.checked || false;
   status.textContent = "Posting...";
   let imageUrl = null;
-  if (fileInput.files[0]) {
+
+  // Handle slideshow reel
+  if (slideshowFiles.length > 0) {
+    status.textContent = "Building reel... ⏳";
+    const reelFile = await buildAndUploadSlideshow();
+    if (reelFile) {
+      const ext = reelFile.name.split(".").pop().toLowerCase();
+      const fname = uid() + "." + ext;
+      const { error: uploadError } = await sb.storage.from("judge-me-uploads").upload(fname, reelFile, { upsert: true, contentType: reelFile.type });
+      if (!uploadError) {
+        const { data: ud } = sb.storage.from("judge-me-uploads").getPublicUrl(fname);
+        imageUrl = ud.publicUrl;
+      }
+    }
+    slideshowFiles = [];
+    if (slideshowInterval) { clearInterval(slideshowInterval); slideshowInterval = null; }
+    document.getElementById("slideshow-controls").style.display = "none";
+    document.getElementById("slideshow-file").value = "";
+  } else if (fileInput.files[0]) {
     const file = fileInput.files[0];
     const ext = file.name.split(".").pop().toLowerCase();
     const fname = uid() + "." + ext;
@@ -2829,6 +2847,155 @@ async function assignBadgeTier(userId) {
   return tier;
 }
 
+
+
+
+// ── SLIDESHOW / REEL MAKER ────────────────────────────────────────
+let slideshowFiles = [];
+let slideshowDuration = 1500; // ms per slide
+let slideshowInterval = null;
+let slideshowCurrentIdx = 0;
+
+function setSlideDuration(ms, btn) {
+  slideshowDuration = ms;
+  document.querySelectorAll(".slide-dur-btn").forEach(b => {
+    b.style.border = "1px solid #333";
+    b.style.color = "#888";
+    b.style.fontWeight = "normal";
+  });
+  btn.style.border = "1px solid #ff6b35";
+  btn.style.color = "#ff6b35";
+  btn.style.fontWeight = "700";
+  // Update preview if playing
+  if (slideshowFiles.length > 0) startSlideshowPreview();
+}
+
+function previewSlideshow(input) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  slideshowFiles = files;
+
+  // Show controls
+  document.getElementById("slideshow-controls").style.display = "block";
+  document.getElementById("slideshow-count").textContent = files.length;
+
+  // Show thumbnail strip
+  const strip = document.getElementById("slideshow-preview-strip");
+  strip.innerHTML = "";
+  files.forEach((f, i) => {
+    const url = URL.createObjectURL(f);
+    const thumb = document.createElement("div");
+    thumb.style.cssText = "width:54px;height:54px;border-radius:8px;overflow:hidden;flex-shrink:0;border:2px solid transparent;transition:border 0.15s;cursor:pointer";
+    thumb.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover"/>`;
+    thumb.dataset.idx = i;
+    strip.appendChild(thumb);
+  });
+
+  // Show slideshow preview in post-preview area
+  document.getElementById("text-overlay-btn-wrap").style.display = "block";
+  textOverlay = null;
+  document.getElementById("overlay-preview-indicator").style.display = "none";
+  startSlideshowPreview();
+}
+
+function startSlideshowPreview() {
+  if (slideshowInterval) clearInterval(slideshowInterval);
+  slideshowCurrentIdx = 0;
+  showSlide(0);
+  slideshowInterval = setInterval(() => {
+    slideshowCurrentIdx = (slideshowCurrentIdx + 1) % slideshowFiles.length;
+    showSlide(slideshowCurrentIdx);
+  }, slideshowDuration);
+}
+
+function showSlide(idx) {
+  const file = slideshowFiles[idx];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const preview = document.getElementById("post-preview");
+  preview.innerHTML = `
+    <div style="position:relative;width:100%;height:100%">
+      <img src="${url}" style="width:100%;max-height:200px;border-radius:10px;object-fit:cover;transition:opacity 0.3s"/>
+      <div style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.6);color:#fff;font-size:11px;padding:2px 6px;border-radius:8px">${idx+1}/${slideshowFiles.length}</div>
+    </div>`;
+  // Highlight active thumb
+  document.querySelectorAll("#slideshow-preview-strip div").forEach((t, i) => {
+    t.style.border = i === idx ? "2px solid #ff6b35" : "2px solid transparent";
+  });
+}
+
+async function buildAndUploadSlideshow() {
+  if (slideshowFiles.length === 0) return null;
+  showToast("Building your reel... ⏳");
+
+  // Use canvas to stitch images into a video using MediaRecorder
+  const canvas = document.createElement("canvas");
+  canvas.width = 720;
+  canvas.height = 1280;
+  const ctx = canvas.getContext("2d");
+
+  // Load all images first
+  const images = await Promise.all(slideshowFiles.map(f => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = URL.createObjectURL(f);
+  })));
+
+  // Check MediaRecorder support
+  const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+    ? "video/webm;codecs=vp9"
+    : MediaRecorder.isTypeSupported("video/webm")
+      ? "video/webm"
+      : null;
+
+  if (!mimeType) {
+    // Fallback: just upload first image if recording not supported
+    showToast("Reel not supported on this device — uploading first photo");
+    return slideshowFiles[0];
+  }
+
+  return new Promise((resolve) => {
+    const stream = canvas.captureStream(30);
+    const recorder = new MediaRecorder(stream, { mimeType });
+    const chunks = [];
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: "video/webm" });
+      const file = new File([blob], "reel-" + Date.now() + ".webm", { type: "video/webm" });
+      resolve(file);
+    };
+
+    let frameIdx = 0;
+    let frameCount = 0;
+    const fps = 30;
+    const framesPerSlide = Math.round((slideshowDuration / 1000) * fps);
+    const totalFrames = images.length * framesPerSlide;
+
+    recorder.start();
+
+    function drawFrame() {
+      if (frameCount >= totalFrames) {
+        recorder.stop();
+        return;
+      }
+      const img = images[Math.floor(frameCount / framesPerSlide)];
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Draw image centered with contain
+      const scale = Math.min(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
+      const w = img.naturalWidth * scale;
+      const h = img.naturalHeight * scale;
+      const x = (canvas.width - w) / 2;
+      const y = (canvas.height - h) / 2;
+      ctx.drawImage(img, x, y, w, h);
+      frameCount++;
+      setTimeout(drawFrame, 1000 / fps);
+    }
+    drawFrame();
+  });
+}
 
 
 // ── CAMERA WITH FILTERS ───────────────────────────────────────────
