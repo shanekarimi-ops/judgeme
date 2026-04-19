@@ -2830,6 +2830,104 @@ async function assignBadgeTier(userId) {
 }
 
 
+
+// ── CAMERA WITH FILTERS ───────────────────────────────────────────
+let cameraStream = null;
+let cameraFacingMode = "user"; // front camera default
+let currentCameraFilter = "none";
+
+const CAMERA_FILTERS = {
+  none:  "none",
+  warm:  "sepia(0.3) saturate(1.4) hue-rotate(-15deg) brightness(1.05)",
+  cool:  "saturate(0.9) hue-rotate(30deg) brightness(1.05) contrast(1.1)",
+  bw:    "grayscale(1) contrast(1.1)",
+  vivid: "saturate(1.8) contrast(1.15) brightness(1.05)",
+  fade:  "contrast(0.85) brightness(1.1) saturate(0.8)",
+};
+
+async function openCamera() {
+  const modal = document.getElementById("camera-modal");
+  modal.style.display = "flex";
+  await startCameraStream();
+}
+
+async function startCameraStream() {
+  // Stop any existing stream
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+  }
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: cameraFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
+    const preview = document.getElementById("camera-preview");
+    preview.srcObject = cameraStream;
+    preview.style.filter = CAMERA_FILTERS[currentCameraFilter] || "none";
+  } catch(err) {
+    showToast("Camera access denied. Please allow camera in your browser settings.");
+    closeCamera();
+  }
+}
+
+function flipCamera() {
+  cameraFacingMode = cameraFacingMode === "user" ? "environment" : "user";
+  startCameraStream();
+}
+
+function setCameraFilter(filter, btn) {
+  currentCameraFilter = filter;
+  document.querySelectorAll(".cam-filter-btn").forEach(b => {
+    b.style.border = "1px solid #444";
+    b.style.fontWeight = "normal";
+  });
+  btn.style.border = "2px solid #ff6b35";
+  btn.style.fontWeight = "700";
+  const preview = document.getElementById("camera-preview");
+  preview.style.filter = CAMERA_FILTERS[filter] || "none";
+}
+
+function capturePhoto() {
+  const preview = document.getElementById("camera-preview");
+  const canvas = document.getElementById("camera-canvas");
+  canvas.width = preview.videoWidth;
+  canvas.height = preview.videoHeight;
+  const ctx = canvas.getContext("2d");
+
+  // Apply filter via canvas
+  ctx.filter = CAMERA_FILTERS[currentCameraFilter] || "none";
+  ctx.drawImage(preview, 0, 0, canvas.width, canvas.height);
+
+  canvas.toBlob(blob => {
+    if (!blob) { showToast("Could not capture photo"); return; }
+    const file = new File([blob], "camera-photo-" + Date.now() + ".jpg", { type: "image/jpeg" });
+    // Set as post file
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    const fileInput = document.getElementById("post-file");
+    fileInput.files = dt.files;
+    // Preview it
+    const url = URL.createObjectURL(file);
+    document.getElementById("post-preview").innerHTML = `<img src="${url}" style="max-width:100%;max-height:200px;border-radius:10px"/>`;
+    document.getElementById("text-overlay-btn-wrap").style.display = "block";
+    textOverlay = null;
+    document.getElementById("overlay-preview-indicator").style.display = "none";
+    closeCamera();
+    showToast("Photo captured! ✓");
+  }, "image/jpeg", 0.92);
+}
+
+function closeCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+  }
+  document.getElementById("camera-modal").style.display = "none";
+  document.getElementById("camera-preview").srcObject = null;
+}
+
+
 // ── HELPERS ───────────────────────────────────────────────────────
 function showToast(msg) {
   document.querySelector(".toast")?.remove();
