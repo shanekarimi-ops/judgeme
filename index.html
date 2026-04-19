@@ -211,12 +211,28 @@
                 <div class="upload-sub">From camera roll</div>
               </div>
             </div>
-            <button onclick="openCamera()" style="width:80px;border-radius:14px;border:1px dashed #ff6b35;background:transparent;color:#ff6b35;font-size:13px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex-shrink:0">
-              <span style="font-size:24px">📸</span>
-              Camera
-            </button>
+            <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0">
+              <button onclick="openCamera()" style="width:80px;height:58px;border-radius:14px;border:1px dashed #ff6b35;background:transparent;color:#ff6b35;font-size:12px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px">
+                <span style="font-size:22px">📸</span>Camera
+              </button>
+              <button onclick="document.getElementById('slideshow-file').click()" style="width:80px;height:58px;border-radius:14px;border:1px dashed #a78bfa;background:transparent;color:#a78bfa;font-size:12px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px">
+                <span style="font-size:22px">🎞️</span>Reel
+              </button>
+            </div>
           </div>
           <input type="file" id="post-file" accept="image/*,video/*" style="display:none" onchange="previewPost(this)"/>
+          <input type="file" id="slideshow-file" accept="image/*" multiple style="display:none" onchange="previewSlideshow(this)"/>
+          <!-- Slideshow controls (shown after selecting images) -->
+          <div id="slideshow-controls" style="display:none;margin-top:10px;background:#1a1a1a;border-radius:12px;padding:12px">
+            <div style="font-size:13px;color:#aaa;margin-bottom:8px">🎞️ <span id="slideshow-count">0</span> photos selected</div>
+            <div style="font-size:12px;color:#666;margin-bottom:6px">Seconds per photo</div>
+            <div style="display:flex;gap:8px">
+              <button class="slide-dur-btn active" data-dur="1500" onclick="setSlideDuration(1500,this)" style="flex:1;padding:8px;border-radius:8px;border:1px solid #ff6b35;background:transparent;color:#ff6b35;font-size:13px;font-weight:700;cursor:pointer">1s</button>
+              <button class="slide-dur-btn" data-dur="2500" onclick="setSlideDuration(2500,this)" style="flex:1;padding:8px;border-radius:8px;border:1px solid #333;background:transparent;color:#888;font-size:13px;cursor:pointer">2.5s</button>
+              <button class="slide-dur-btn" data-dur="4000" onclick="setSlideDuration(4000,this)" style="flex:1;padding:8px;border-radius:8px;border:1px solid #333;background:transparent;color:#888;font-size:13px;cursor:pointer">4s</button>
+            </div>
+            <div id="slideshow-preview-strip" style="display:flex;gap:6px;margin-top:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none"></div>
+          </div>
           <div id="text-overlay-btn-wrap" style="display:none;margin-top:10px">
             <button onclick="openTextEditor()" style="width:100%;padding:12px;border-radius:12px;border:1px solid #ff6b35;background:transparent;color:#ff6b35;font-size:14px;font-weight:600;cursor:pointer">✍️ Add Text Overlay</button>
             <div id="overlay-preview-indicator" style="display:none;font-size:12px;color:#ff6b35;text-align:center;margin-top:6px">✓ Text overlay added</div>
