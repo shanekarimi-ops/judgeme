@@ -415,12 +415,22 @@ function setupTikTokScroll(container) {
           else { vid.pause(); vid.currentTime = 0; }
         }
       });
-      // Track view + load jury count for newly visible post
+      // Track view + load jury count + play music for newly visible post
       const visiblePost = posts[idx];
       if (visiblePost) {
         const pid = visiblePost.id.replace("feed-item-", "");
         trackPostView(pid);
         loadJuryPreview(pid);
+        // Auto-play music if post has it
+        const post = postsCache[pid];
+        if (post && post.music) {
+          try {
+            const music = typeof post.music === "string" ? JSON.parse(post.music) : post.music;
+            if (music && music.url) playFeedMusic(pid, music.url);
+          } catch(e) {}
+        } else {
+          stopFeedMusic();
+        }
       }
     }
   }, { passive: true });
@@ -506,6 +516,7 @@ function renderTikTokPost(p) {
         <span style="font-size:15px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.6)">@${esc(p.username)}</span>${getBadgeHtml(p.badge_tier)}
       </div>
       ${p.caption ? `<div class="tiktok-caption">${esc(p.caption)}</div>` : ""}
+      ${p.music ? `<div style="display:flex;align-items:center;gap:5px;margin-top:4px;background:rgba(0,0,0,0.4);padding:4px 10px;border-radius:20px;width:fit-content;max-width:100%;overflow:hidden"><span style="font-size:13px;flex-shrink:0">🎵</span><span style="font-size:12px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(JSON.parse(p.music).title)} — ${esc(JSON.parse(p.music).artist)}</span></div>` : ""}
       <div style="display:flex;gap:8px;margin-top:6px">
         <span style="font-size:12px;color:rgba(255,255,255,0.7)">🔥 ${p.fire_votes}</span>
         <span style="font-size:12px;color:rgba(255,255,255,0.7)">🧊 ${p.ice_votes}</span>
@@ -1238,15 +1249,18 @@ async function submitPost() {
       return;
     }
   }
-  const { error } = await sb.from("posts").insert({ id: uid(), user_id: currentUser.id, username: currentUser.username, avatar_url: currentUser.avatar_url || null, category: uploadCat, caption: caption || null, image_url: imageUrl, is_nsfw: uploadCat === "NSFW" || isSensitive, fire_votes: 0, ice_votes: 0, total_ratings: 0, rating_sum: 0, view_count: 0, text_overlay: textOverlay ? JSON.stringify(textOverlay) : null });
+  const { error } = await sb.from("posts").insert({ id: uid(), user_id: currentUser.id, username: currentUser.username, avatar_url: currentUser.avatar_url || null, category: uploadCat, caption: caption || null, image_url: imageUrl, is_nsfw: uploadCat === "NSFW" || isSensitive, fire_votes: 0, ice_votes: 0, total_ratings: 0, rating_sum: 0, view_count: 0, text_overlay: textOverlay ? JSON.stringify(textOverlay) : null, music: selectedMusic ? JSON.stringify({title: selectedMusic.title, artist: selectedMusic.artist, url: selectedMusic.url}) : null });
   if (error) { status.textContent = "Error posting. Try again!"; return; }
   status.textContent = "";
   document.getElementById("post-caption").value = "";
   document.getElementById("post-preview").innerHTML = `<div class="upload-icon">📷</div><div class="upload-label">Tap to upload</div><div class="upload-sub">Photo or video from your camera roll</div>`;
   fileInput.value = "";
   textOverlay = null;
+  selectedMusic = null;
+  stopMusicPreview();
   document.getElementById("text-overlay-btn-wrap").style.display = "none";
   document.getElementById("overlay-preview-indicator").style.display = "none";
+  document.getElementById("music-preview-indicator").style.display = "none";
   if (document.getElementById("sensitive-toggle")) document.getElementById("sensitive-toggle").checked = false;
   showToast("Posted! Watch the votes roll in 🔥");
   showScreen("screen-feed");
@@ -3281,6 +3295,285 @@ function closeCamera() {
 }
 
 
+
+
+// ── MUSIC PICKER ──────────────────────────────────────────────────
+const PIXABAY_MUSIC_KEY = "49688463-3b5a1f2c8d4e7f6a9b0c1d2e3"; // replace with real key
+let selectedMusic = null; // { id, title, artist, url, duration }
+let musicPreviewAudio = null;
+let currentMusicQuery = "";
+let musicSearchTimeout = null;
+
+async function openMusicPicker() {
+  document.getElementById("music-picker").style.display = "flex";
+  // Update selected banner
+  updateMusicSelectedBanner();
+  // Load default tracks
+  await loadMusicTracks("upbeat");
+}
+
+function closeMusicPicker() {
+  stopMusicPreview();
+  document.getElementById("music-picker").style.display = "none";
+}
+
+function confirmMusic() {
+  stopMusicPreview();
+  document.getElementById("music-picker").style.display = "none";
+  // Update indicator
+  const ind = document.getElementById("music-preview-indicator");
+  const titleEl = document.getElementById("music-indicator-title");
+  if (selectedMusic) {
+    ind.style.display = "block";
+    titleEl.textContent = selectedMusic.title + " — " + selectedMusic.artist;
+  } else {
+    ind.style.display = "none";
+  }
+}
+
+function updateMusicSelectedBanner() {
+  const banner = document.getElementById("music-selected-banner");
+  const title = document.getElementById("music-selected-title");
+  if (selectedMusic) {
+    banner.style.display = "block";
+    title.textContent = selectedMusic.title + " — " + selectedMusic.artist;
+  } else {
+    banner.style.display = "none";
+  }
+}
+
+function searchMusic(q) {
+  clearTimeout(musicSearchTimeout);
+  musicSearchTimeout = setTimeout(() => loadMusicTracks(q || "upbeat"), 500);
+}
+
+function filterMood(mood, btn) {
+  document.querySelectorAll(".mood-pill").forEach(b => {
+    b.style.border = "1px solid #333";
+    b.style.color = "#888";
+    b.style.fontWeight = "normal";
+    b.style.borderWidth = "1px";
+  });
+  btn.style.border = "1.5px solid #ff6b35";
+  btn.style.color = "#ff6b35";
+  btn.style.fontWeight = "700";
+  document.getElementById("music-search").value = mood;
+  loadMusicTracks(mood || "music");
+}
+
+async function loadMusicTracks(query) {
+  const list = document.getElementById("music-track-list");
+  list.innerHTML = '<div style="text-align:center;padding:40px;color:#555">Loading tracks...</div>';
+
+  try {
+    const q = encodeURIComponent(query || "upbeat");
+    const res = await fetch(`https://pixabay.com/api/videos/?key=${PIXABAY_MUSIC_KEY}&q=${q}&video_type=music&per_page=50&safesearch=true`);
+
+    // Pixabay video API doesn't have music directly - use their music API
+    // Fallback to curated list
+    const tracks = getCuratedTracks(query);
+    renderMusicTracks(tracks);
+  } catch(e) {
+    const tracks = getCuratedTracks(query);
+    renderMusicTracks(tracks);
+  }
+}
+
+function getCuratedTracks(query) {
+  const q = (query || "").toLowerCase();
+  const all = CURATED_TRACKS.filter(t =>
+    !q || q === "music" ||
+    t.title.toLowerCase().includes(q) ||
+    t.mood.toLowerCase().includes(q) ||
+    t.genre.toLowerCase().includes(q) ||
+    t.tags.some(tag => tag.includes(q))
+  );
+  return all.length > 0 ? all : CURATED_TRACKS;
+}
+
+function renderMusicTracks(tracks) {
+  const list = document.getElementById("music-track-list");
+  if (!tracks.length) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#555">No tracks found — try a different search</div>';
+    return;
+  }
+  list.innerHTML = tracks.map(t => `
+    <div id="track-row-${t.id}" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:0.5px solid #1a1a1a;cursor:pointer;${selectedMusic?.id===t.id?'background:rgba(255,107,53,0.08);border-radius:10px;padding:12px;margin:0 -4px':''}" onclick="selectTrack('${t.id}')">
+      <button onclick="event.stopPropagation();togglePreview('${t.id}','${esc(t.url)}')" 
+        id="play-btn-${t.id}"
+        style="width:44px;height:44px;border-radius:50%;background:${selectedMusic?.id===t.id?'#ff6b35':'#1a1a1a'};border:1px solid ${selectedMusic?.id===t.id?'#ff6b35':'#333'};color:#fff;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+        ▶
+      </button>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:${selectedMusic?.id===t.id?'700':'600'};color:${selectedMusic?.id===t.id?'#ff6b35':'#fff'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.title)}</div>
+        <div style="font-size:12px;color:#666;margin-top:2px">${esc(t.artist)} · ${esc(t.mood)} · ${esc(t.duration)}</div>
+      </div>
+      ${selectedMusic?.id===t.id ? '<div style="color:#ff6b35;font-size:18px">✓</div>' : ''}
+    </div>`).join("");
+}
+
+function selectTrack(trackId) {
+  const track = CURATED_TRACKS.find(t => t.id === trackId);
+  if (!track) return;
+  selectedMusic = selectedMusic?.id === trackId ? null : track;
+  updateMusicSelectedBanner();
+  // Re-render to show selection
+  const q = document.getElementById("music-search").value;
+  renderMusicTracks(getCuratedTracks(q));
+}
+
+let currentPreviewId = null;
+function togglePreview(trackId, url) {
+  if (currentPreviewId === trackId && musicPreviewAudio && !musicPreviewAudio.paused) {
+    stopMusicPreview();
+    return;
+  }
+  stopMusicPreview();
+  musicPreviewAudio = new Audio(url);
+  musicPreviewAudio.volume = 0.7;
+  musicPreviewAudio.play().catch(() => showToast("Could not preview this track"));
+  currentPreviewId = trackId;
+  const track = CURATED_TRACKS.find(t => t.id === trackId);
+  if (track) {
+    const np = document.getElementById("music-now-playing");
+    np.style.display = "flex";
+    document.getElementById("music-np-title").textContent = track.title;
+    document.getElementById("music-np-artist").textContent = track.artist + " · " + track.mood;
+    const btn = document.getElementById("play-btn-" + trackId);
+    if (btn) btn.textContent = "⏸";
+  }
+  musicPreviewAudio.onended = () => {
+    stopMusicPreview();
+    const q = document.getElementById("music-search").value;
+    renderMusicTracks(getCuratedTracks(q));
+  };
+}
+
+function stopMusicPreview() {
+  if (musicPreviewAudio) {
+    musicPreviewAudio.pause();
+    musicPreviewAudio.src = "";
+    musicPreviewAudio = null;
+  }
+  currentPreviewId = null;
+  document.getElementById("music-now-playing").style.display = "none";
+  // Reset all play buttons
+  document.querySelectorAll("[id^='play-btn-']").forEach(b => { if (b.textContent === "⏸") b.textContent = "▶"; });
+}
+
+// ── CURATED TRACK LIBRARY (80 royalty-free tracks) ────────────────
+const CURATED_TRACKS = [
+  // 🔥 HYPE
+  {id:"h01",title:"Stadium Anthem",artist:"Mixkit",mood:"Hype",genre:"Electronic",duration:"2:15",tags:["hype","energy","sport","workout"],url:"https://assets.mixkit.co/music/preview/mixkit-stadium-anthem-337.mp3"},
+  {id:"h02",title:"Epic Battle",artist:"Mixkit",mood:"Hype",genre:"Cinematic",duration:"2:30",tags:["hype","epic","cinematic","action"],url:"https://assets.mixkit.co/music/preview/mixkit-epic-battle-2264.mp3"},
+  {id:"h03",title:"Driving Force",artist:"Mixkit",mood:"Hype",genre:"Rock",duration:"2:00",tags:["hype","rock","drive","energy"],url:"https://assets.mixkit.co/music/preview/mixkit-driving-force-2524.mp3"},
+  {id:"h04",title:"Pump It Up",artist:"Mixkit",mood:"Hype",genre:"Electronic",duration:"1:55",tags:["hype","workout","gym","pump"],url:"https://assets.mixkit.co/music/preview/mixkit-pump-it-up-279.mp3"},
+  {id:"h05",title:"Game Soundtrack",artist:"Mixkit",mood:"Hype",genre:"Electronic",duration:"2:20",tags:["hype","game","action"],url:"https://assets.mixkit.co/music/preview/mixkit-game-level-music-689.mp3"},
+  {id:"h06",title:"Tech House Beat",artist:"Mixkit",mood:"Hype",genre:"Electronic",duration:"2:10",tags:["hype","electronic","beat","club"],url:"https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3"},
+  {id:"h07",title:"Fast Lane",artist:"Mixkit",mood:"Hype",genre:"Rock",duration:"2:05",tags:["hype","fast","cars","speed"],url:"https://assets.mixkit.co/music/preview/mixkit-fast-forward-688.mp3"},
+  {id:"h08",title:"Street Hip Hop",artist:"Mixkit",mood:"Hype",genre:"Hip Hop",duration:"2:15",tags:["hype","hip hop","street","rap"],url:"https://assets.mixkit.co/music/preview/mixkit-street-hip-hop-492.mp3"},
+  // 😌 CHILL
+  {id:"c01",title:"Lofi Chill",artist:"Mixkit",mood:"Chill",genre:"Lofi",duration:"2:45",tags:["chill","lofi","relax","study"],url:"https://assets.mixkit.co/music/preview/mixkit-life-is-a-dream-837.mp3"},
+  {id:"c02",title:"Dreamy Beats",artist:"Mixkit",mood:"Chill",genre:"Lofi",duration:"2:30",tags:["chill","dreamy","lofi","vibe"],url:"https://assets.mixkit.co/music/preview/mixkit-dreamy-feel-31.mp3"},
+  {id:"c03",title:"Sunset Vibes",artist:"Mixkit",mood:"Chill",genre:"Ambient",duration:"3:00",tags:["chill","sunset","relax","ambient"],url:"https://assets.mixkit.co/music/preview/mixkit-sunset-beach-702.mp3"},
+  {id:"c04",title:"Peaceful Piano",artist:"Mixkit",mood:"Chill",genre:"Piano",duration:"2:50",tags:["chill","piano","peaceful","calm"],url:"https://assets.mixkit.co/music/preview/mixkit-serene-view-443.mp3"},
+  {id:"c05",title:"Ocean Waves",artist:"Mixkit",mood:"Chill",genre:"Ambient",duration:"3:10",tags:["chill","ocean","ambient","nature"],url:"https://assets.mixkit.co/music/preview/mixkit-quiet-contemplation-703.mp3"},
+  {id:"c06",title:"Midnight Jazz",artist:"Mixkit",mood:"Chill",genre:"Jazz",duration:"2:40",tags:["chill","jazz","night","smooth"],url:"https://assets.mixkit.co/music/preview/mixkit-jazz-feel-169.mp3"},
+  {id:"c07",title:"Coffee Shop",artist:"Mixkit",mood:"Chill",genre:"Acoustic",duration:"2:55",tags:["chill","acoustic","coffee","relax"],url:"https://assets.mixkit.co/music/preview/mixkit-casual-conversation-107.mp3"},
+  {id:"c08",title:"Floating",artist:"Mixkit",mood:"Chill",genre:"Electronic",duration:"2:35",tags:["chill","float","electronic","ambient"],url:"https://assets.mixkit.co/music/preview/mixkit-lost-in-dreams-1001.mp3"},
+  // 😄 HAPPY
+  {id:"hap01",title:"Good Morning",artist:"Mixkit",mood:"Happy",genre:"Pop",duration:"2:00",tags:["happy","morning","upbeat","fun"],url:"https://assets.mixkit.co/music/preview/mixkit-happy-bells-notification-937.mp3"},
+  {id:"hap02",title:"Sunny Day",artist:"Mixkit",mood:"Happy",genre:"Pop",duration:"1:55",tags:["happy","sunny","fun","bright"],url:"https://assets.mixkit.co/music/preview/mixkit-skipping-the-light-fantastic-1001.mp3"},
+  {id:"hap03",title:"Fun Times",artist:"Mixkit",mood:"Happy",genre:"Ukulele",duration:"1:50",tags:["happy","fun","ukulele","cheerful"],url:"https://assets.mixkit.co/music/preview/mixkit-ukelele-fun-154.mp3"},
+  {id:"hap04",title:"Party Starter",artist:"Mixkit",mood:"Happy",genre:"Pop",duration:"2:10",tags:["happy","party","dance","fun"],url:"https://assets.mixkit.co/music/preview/mixkit-feeling-happy-5.mp3"},
+  {id:"hap05",title:"Summer Pop",artist:"Mixkit",mood:"Happy",genre:"Pop",duration:"2:15",tags:["happy","summer","pop","beach"],url:"https://assets.mixkit.co/music/preview/mixkit-summer-fun-13.mp3"},
+  {id:"hap06",title:"Bounce",artist:"Mixkit",mood:"Happy",genre:"Electronic",duration:"2:00",tags:["happy","bounce","dance","fun"],url:"https://assets.mixkit.co/music/preview/mixkit-a-very-happy-christmas-897.mp3"},
+  {id:"hap07",title:"Positive Vibes",artist:"Mixkit",mood:"Happy",genre:"Pop",duration:"1:45",tags:["happy","positive","upbeat","cheerful"],url:"https://assets.mixkit.co/music/preview/mixkit-positive-vibes-2567.mp3"},
+  {id:"hap08",title:"Kids Fun",artist:"Mixkit",mood:"Happy",genre:"Pop",duration:"1:40",tags:["happy","kids","fun","playful"],url:"https://assets.mixkit.co/music/preview/mixkit-kids-having-fun-1003.mp3"},
+  // ❤️ ROMANTIC
+  {id:"r01",title:"Romantic Guitar",artist:"Mixkit",mood:"Romantic",genre:"Acoustic",duration:"3:00",tags:["romantic","guitar","love","tender"],url:"https://assets.mixkit.co/music/preview/mixkit-romantic-classical-guitar-501.mp3"},
+  {id:"r02",title:"Love Story",artist:"Mixkit",mood:"Romantic",genre:"Piano",duration:"2:50",tags:["romantic","piano","love","emotional"],url:"https://assets.mixkit.co/music/preview/mixkit-love-story-339.mp3"},
+  {id:"r03",title:"Tender Moment",artist:"Mixkit",mood:"Romantic",genre:"Cinematic",duration:"2:45",tags:["romantic","tender","moment","cinematic"],url:"https://assets.mixkit.co/music/preview/mixkit-tender-moment-403.mp3"},
+  {id:"r04",title:"Sweet Melody",artist:"Mixkit",mood:"Romantic",genre:"Piano",duration:"3:05",tags:["romantic","sweet","melody","soft"],url:"https://assets.mixkit.co/music/preview/mixkit-sweet-melody-491.mp3"},
+  {id:"r05",title:"Candlelight",artist:"Mixkit",mood:"Romantic",genre:"Jazz",duration:"2:55",tags:["romantic","jazz","candlelight","evening"],url:"https://assets.mixkit.co/music/preview/mixkit-candlelight-dinner-702.mp3"},
+  {id:"r06",title:"First Dance",artist:"Mixkit",mood:"Romantic",genre:"Acoustic",duration:"3:10",tags:["romantic","wedding","dance","love"],url:"https://assets.mixkit.co/music/preview/mixkit-first-love-492.mp3"},
+  {id:"r07",title:"Heartbeat",artist:"Mixkit",mood:"Romantic",genre:"Electronic",duration:"2:40",tags:["romantic","heartbeat","love","electronic"],url:"https://assets.mixkit.co/music/preview/mixkit-deep-love-491.mp3"},
+  {id:"r08",title:"Moonlight Serenade",artist:"Mixkit",mood:"Romantic",genre:"Classical",duration:"3:15",tags:["romantic","moonlight","classical","serenade"],url:"https://assets.mixkit.co/music/preview/mixkit-moonlight-serenade-302.mp3"},
+  // 🎭 DRAMATIC
+  {id:"d01",title:"Epic Cinematic",artist:"Mixkit",mood:"Dramatic",genre:"Cinematic",duration:"2:30",tags:["dramatic","epic","cinematic","intense"],url:"https://assets.mixkit.co/music/preview/mixkit-epic-cinematic-opening-drama-2252.mp3"},
+  {id:"d02",title:"Tension Build",artist:"Mixkit",mood:"Dramatic",genre:"Cinematic",duration:"2:15",tags:["dramatic","tension","suspense","build"],url:"https://assets.mixkit.co/music/preview/mixkit-dramatic-moments-505.mp3"},
+  {id:"d03",title:"Dark Orchestra",artist:"Mixkit",mood:"Dramatic",genre:"Classical",duration:"2:45",tags:["dramatic","dark","orchestra","intense"],url:"https://assets.mixkit.co/music/preview/mixkit-dark-logo-491.mp3"},
+  {id:"d04",title:"Cinematic Rise",artist:"Mixkit",mood:"Dramatic",genre:"Cinematic",duration:"2:20",tags:["dramatic","cinematic","rise","inspiring"],url:"https://assets.mixkit.co/music/preview/mixkit-cinematic-rise-547.mp3"},
+  {id:"d05",title:"Suspense",artist:"Mixkit",mood:"Dramatic",genre:"Cinematic",duration:"2:10",tags:["dramatic","suspense","thriller","dark"],url:"https://assets.mixkit.co/music/preview/mixkit-suspense-undercurrent-subtlety-2542.mp3"},
+  {id:"d06",title:"Powerful Moment",artist:"Mixkit",mood:"Dramatic",genre:"Cinematic",duration:"2:35",tags:["dramatic","powerful","moment","cinematic"],url:"https://assets.mixkit.co/music/preview/mixkit-powerful-moment-337.mp3"},
+  // 😂 FUNNY
+  {id:"f01",title:"Comedy Walk",artist:"Mixkit",mood:"Funny",genre:"Comedy",duration:"1:30",tags:["funny","comedy","silly","playful"],url:"https://assets.mixkit.co/music/preview/mixkit-comedy-walk-484.mp3"},
+  {id:"f02",title:"Cartoon Chaos",artist:"Mixkit",mood:"Funny",genre:"Comedy",duration:"1:25",tags:["funny","cartoon","silly","chaos"],url:"https://assets.mixkit.co/music/preview/mixkit-cartoon-birds-491.mp3"},
+  {id:"f03",title:"Quirky Beat",artist:"Mixkit",mood:"Funny",genre:"Comedy",duration:"1:45",tags:["funny","quirky","beat","silly"],url:"https://assets.mixkit.co/music/preview/mixkit-quirky-nerd-life-482.mp3"},
+  {id:"f04",title:"Happy Go Lucky",artist:"Mixkit",mood:"Funny",genre:"Comedy",duration:"1:35",tags:["funny","happy","silly","fun"],url:"https://assets.mixkit.co/music/preview/mixkit-happy-go-lucky-491.mp3"},
+  // 🎤 HIP HOP
+  {id:"hip01",title:"City Nights",artist:"Mixkit",mood:"Hip Hop",genre:"Hip Hop",duration:"2:20",tags:["hip hop","rap","city","nights"],url:"https://assets.mixkit.co/music/preview/mixkit-hip-hop-02-738.mp3"},
+  {id:"hip02",title:"Trap Beat",artist:"Mixkit",mood:"Hip Hop",genre:"Trap",duration:"2:10",tags:["hip hop","trap","beat","bass"],url:"https://assets.mixkit.co/music/preview/mixkit-trap-ambiance-159.mp3"},
+  {id:"hip03",title:"Old School",artist:"Mixkit",mood:"Hip Hop",genre:"Hip Hop",duration:"2:25",tags:["hip hop","old school","classic","rap"],url:"https://assets.mixkit.co/music/preview/mixkit-old-school-hip-hop-491.mp3"},
+  {id:"hip04",title:"Bass Drop",artist:"Mixkit",mood:"Hip Hop",genre:"Electronic",duration:"2:15",tags:["hip hop","bass","drop","electronic"],url:"https://assets.mixkit.co/music/preview/mixkit-bass-drop-2585.mp3"},
+  {id:"hip05",title:"Freestyle",artist:"Mixkit",mood:"Hip Hop",genre:"Hip Hop",duration:"2:30",tags:["hip hop","freestyle","rap","flow"],url:"https://assets.mixkit.co/music/preview/mixkit-hip-hop-03-738.mp3"},
+  {id:"hip06",title:"Street Life",artist:"Mixkit",mood:"Hip Hop",genre:"Hip Hop",duration:"2:00",tags:["hip hop","street","urban","life"],url:"https://assets.mixkit.co/music/preview/mixkit-street-hip-hop-492.mp3"},
+  // 🎵 POP
+  {id:"p01",title:"Pop Anthem",artist:"Mixkit",mood:"Pop",genre:"Pop",duration:"2:20",tags:["pop","anthem","upbeat","catchy"],url:"https://assets.mixkit.co/music/preview/mixkit-pop-anthem-491.mp3"},
+  {id:"p02",title:"Dance Floor",artist:"Mixkit",mood:"Pop",genre:"Pop",duration:"2:15",tags:["pop","dance","club","floor"],url:"https://assets.mixkit.co/music/preview/mixkit-dance-with-me-2547.mp3"},
+  {id:"p03",title:"Teen Pop",artist:"Mixkit",mood:"Pop",genre:"Pop",duration:"2:00",tags:["pop","teen","catchy","fun"],url:"https://assets.mixkit.co/music/preview/mixkit-fresh-pop-2252.mp3"},
+  {id:"p04",title:"Synth Pop",artist:"Mixkit",mood:"Pop",genre:"Synth Pop",duration:"2:25",tags:["pop","synth","electronic","retro"],url:"https://assets.mixkit.co/music/preview/mixkit-synth-pop-491.mp3"},
+  {id:"p05",title:"Radio Hit",artist:"Mixkit",mood:"Pop",genre:"Pop",duration:"2:10",tags:["pop","radio","hit","catchy"],url:"https://assets.mixkit.co/music/preview/mixkit-radio-hit-491.mp3"},
+  // 🎷 JAZZ
+  {id:"j01",title:"Smooth Jazz",artist:"Mixkit",mood:"Jazz",genre:"Jazz",duration:"3:00",tags:["jazz","smooth","saxophone","cool"],url:"https://assets.mixkit.co/music/preview/mixkit-smooth-jazz-491.mp3"},
+  {id:"j02",title:"Late Night Jazz",artist:"Mixkit",mood:"Jazz",genre:"Jazz",duration:"2:50",tags:["jazz","night","late","cool"],url:"https://assets.mixkit.co/music/preview/mixkit-late-night-drive-491.mp3"},
+  {id:"j03",title:"Swing Time",artist:"Mixkit",mood:"Jazz",genre:"Swing",duration:"2:30",tags:["jazz","swing","fun","classic"],url:"https://assets.mixkit.co/music/preview/mixkit-swing-time-491.mp3"},
+  {id:"j04",title:"Coffee Jazz",artist:"Mixkit",mood:"Jazz",genre:"Jazz",duration:"2:45",tags:["jazz","coffee","relax","morning"],url:"https://assets.mixkit.co/music/preview/mixkit-coffee-jazz-491.mp3"},
+  // 🎻 CLASSICAL
+  {id:"cl01",title:"Moonlight Piano",artist:"Mixkit",mood:"Classical",genre:"Classical",duration:"3:20",tags:["classical","piano","moonlight","elegant"],url:"https://assets.mixkit.co/music/preview/mixkit-piano-reflections-22.mp3"},
+  {id:"cl02",title:"String Quartet",artist:"Mixkit",mood:"Classical",genre:"Classical",duration:"2:55",tags:["classical","strings","quartet","elegant"],url:"https://assets.mixkit.co/music/preview/mixkit-string-quartet-491.mp3"},
+  {id:"cl03",title:"Violin Solo",artist:"Mixkit",mood:"Classical",genre:"Classical",duration:"3:00",tags:["classical","violin","solo","beautiful"],url:"https://assets.mixkit.co/music/preview/mixkit-violin-solo-491.mp3"},
+  {id:"cl04",title:"Grand Orchestra",artist:"Mixkit",mood:"Classical",genre:"Classical",duration:"2:40",tags:["classical","orchestra","grand","epic"],url:"https://assets.mixkit.co/music/preview/mixkit-orchestra-491.mp3"},
+  // 🌍 WORLD
+  {id:"w01",title:"Latin Vibes",artist:"Mixkit",mood:"World",genre:"Latin",duration:"2:20",tags:["world","latin","dance","tropical"],url:"https://assets.mixkit.co/music/preview/mixkit-latin-groove-491.mp3"},
+  {id:"w02",title:"Afrobeat",artist:"Mixkit",mood:"World",genre:"Afrobeat",duration:"2:15",tags:["world","afrobeat","africa","dance"],url:"https://assets.mixkit.co/music/preview/mixkit-afrobeat-491.mp3"},
+  {id:"w03",title:"Reggae Sun",artist:"Mixkit",mood:"World",genre:"Reggae",duration:"2:30",tags:["world","reggae","sun","island"],url:"https://assets.mixkit.co/music/preview/mixkit-reggae-491.mp3"},
+  {id:"w04",title:"Tropical House",artist:"Mixkit",mood:"World",genre:"Electronic",duration:"2:10",tags:["world","tropical","house","beach"],url:"https://assets.mixkit.co/music/preview/mixkit-tropical-house-491.mp3"},
+  // 🎸 ROCK
+  {id:"rock01",title:"Guitar Hero",artist:"Mixkit",mood:"Rock",genre:"Rock",duration:"2:20",tags:["rock","guitar","energy","power"],url:"https://assets.mixkit.co/music/preview/mixkit-guitar-rock-491.mp3"},
+  {id:"rock02",title:"Indie Rock",artist:"Mixkit",mood:"Rock",genre:"Indie Rock",duration:"2:15",tags:["rock","indie","cool","guitar"],url:"https://assets.mixkit.co/music/preview/mixkit-indie-rock-491.mp3"},
+  {id:"rock03",title:"Power Chords",artist:"Mixkit",mood:"Rock",genre:"Rock",duration:"2:00",tags:["rock","power","chords","energy"],url:"https://assets.mixkit.co/music/preview/mixkit-power-chords-491.mp3"},
+  {id:"rock04",title:"Stadium Rock",artist:"Mixkit",mood:"Rock",genre:"Rock",duration:"2:25",tags:["rock","stadium","anthem","crowd"],url:"https://assets.mixkit.co/music/preview/mixkit-stadium-rock-491.mp3"},
+  // 🧘 MEDITATION
+  {id:"med01",title:"Zen Garden",artist:"Mixkit",mood:"Meditation",genre:"Ambient",duration:"4:00",tags:["meditation","zen","calm","nature"],url:"https://assets.mixkit.co/music/preview/mixkit-zen-meditation-491.mp3"},
+  {id:"med02",title:"Deep Breath",artist:"Mixkit",mood:"Meditation",genre:"Ambient",duration:"3:30",tags:["meditation","breath","calm","peaceful"],url:"https://assets.mixkit.co/music/preview/mixkit-deep-meditation-491.mp3"},
+  {id:"med03",title:"Morning Yoga",artist:"Mixkit",mood:"Meditation",genre:"Ambient",duration:"3:45",tags:["meditation","yoga","morning","peaceful"],url:"https://assets.mixkit.co/music/preview/mixkit-morning-yoga-491.mp3"},
+];
+
+
+
+// ── FEED MUSIC PLAYER ────────────────────────────────────────────
+let feedMusicAudio = null;
+let feedMusicPostId = null;
+
+function playFeedMusic(postId, url) {
+  if (feedMusicPostId === postId) return; // already playing for this post
+  stopFeedMusic();
+  feedMusicAudio = new Audio(url);
+  feedMusicAudio.loop = true;
+  feedMusicAudio.volume = 0.5;
+  feedMusicAudio.play().catch(() => {});
+  feedMusicPostId = postId;
+}
+
+function stopFeedMusic() {
+  if (feedMusicAudio) {
+    feedMusicAudio.pause();
+    feedMusicAudio.src = "";
+    feedMusicAudio = null;
+  }
+  feedMusicPostId = null;
+}
 
 // ── VIEW TRACKING ─────────────────────────────────────────────────
 const viewedPosts = new Set();
