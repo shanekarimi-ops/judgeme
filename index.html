@@ -233,14 +233,16 @@
             </div>
             <div id="slideshow-preview-strip" style="display:flex;gap:6px;margin-top:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none"></div>
           </div>
+          <!-- Music button - always visible -->
+          <div style="margin-top:10px">
+            <button onclick="openMusicPicker()" id="music-picker-btn" style="width:100%;padding:13px;border-radius:12px;border:1px solid #a78bfa;background:transparent;color:#a78bfa;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+              🎵 Add Music to Post
+            </button>
+            <div id="music-preview-indicator" style="display:none;font-size:12px;color:#a78bfa;text-align:center;margin-top:6px;padding:6px 12px;background:rgba(167,139,250,0.1);border-radius:8px">🎵 <span id="music-indicator-title"></span> <button onclick="removeMusic()" style="background:none;border:none;color:#666;font-size:12px;cursor:pointer;margin-left:4px">✕</button></div>
+          </div>
           <div id="text-overlay-btn-wrap" style="display:none;margin-top:10px">
             <button onclick="openTextEditor()" style="width:100%;padding:12px;border-radius:12px;border:1px solid #ff6b35;background:transparent;color:#ff6b35;font-size:14px;font-weight:600;cursor:pointer">✍️ Add Text Overlay</button>
             <div id="overlay-preview-indicator" style="display:none;font-size:12px;color:#ff6b35;text-align:center;margin-top:6px">✓ Text overlay added</div>
-          </div>
-          <!-- Music button always visible -->
-          <div style="margin-top:10px">
-            <button onclick="openMusicPicker()" style="width:100%;padding:12px;border-radius:12px;border:1px solid #a78bfa;background:transparent;color:#a78bfa;font-size:14px;font-weight:600;cursor:pointer">🎵 Add Music</button>
-            <div id="music-preview-indicator" style="display:none;font-size:12px;color:#a78bfa;text-align:center;margin-top:6px">🎵 <span id="music-indicator-title"></span></div>
           </div>
           <div class="field-label">Caption (optional)</div>
           <input type="text" id="post-caption" class="text-input" placeholder="Add context... e.g. 'first date outfit'" maxlength="120"/>
