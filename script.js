@@ -8,7 +8,7 @@ let currentUser = null;
 let currentPost = null;
 let currentVote = null;
 let starRating = 0;
-let uploadCat = "Outfit";
+let uploadCat = "Profile Pic";
 let feedTab = "discover";
 let filterCat = "All";
 let filterMinRating = 0;
@@ -2729,7 +2729,7 @@ function showToast(msg) {
 }
 
 function catEmoji(cat) {
-  return { Outfit: "👗", "Profile Pic": "📸", "Pick-up Line": "💬", Haircut: "✂️", NSFW: "🔞", Pets: "🐾", Locations: "📍", Cars: "🚗", Food: "🍕", Other: "⭐" }[cat] || "⭐";
+  return { "Profile Pic": "📸", People: "🧑", Places: "📍", Animals: "🐾", Cars: "🚗", Food: "🍕", Fashion: "👗", Other: "⭐", NSFW: "🔞", Outfit: "👗", Pets: "🐾", Locations: "📍", Haircut: "✂️", "Pick-up Line": "💬" }[cat] || "⭐";
 }
 
 function timeAgo(ts) {
