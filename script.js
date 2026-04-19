@@ -3304,12 +3304,18 @@ let musicPreviewAudio = null;
 let currentMusicQuery = "";
 let musicSearchTimeout = null;
 
-async function openMusicPicker() {
+function openMusicPicker() {
   document.getElementById("music-picker").style.display = "flex";
-  // Update selected banner
   updateMusicSelectedBanner();
-  // Load default tracks
-  await loadMusicTracks("upbeat");
+  // Load all tracks immediately from curated list
+  renderMusicTracks(CURATED_TRACKS);
+}
+
+function removeMusic() {
+  selectedMusic = null;
+  document.getElementById("music-preview-indicator").style.display = "none";
+  document.getElementById("music-indicator-title").textContent = "";
+  showToast("Music removed");
 }
 
 function closeMusicPicker() {
@@ -3320,12 +3326,12 @@ function closeMusicPicker() {
 function confirmMusic() {
   stopMusicPreview();
   document.getElementById("music-picker").style.display = "none";
-  // Update indicator
   const ind = document.getElementById("music-preview-indicator");
   const titleEl = document.getElementById("music-indicator-title");
   if (selectedMusic) {
     ind.style.display = "block";
     titleEl.textContent = selectedMusic.title + " — " + selectedMusic.artist;
+    showToast("🎵 " + selectedMusic.title + " added!");
   } else {
     ind.style.display = "none";
   }
@@ -3361,22 +3367,9 @@ function filterMood(mood, btn) {
   loadMusicTracks(mood || "music");
 }
 
-async function loadMusicTracks(query) {
-  const list = document.getElementById("music-track-list");
-  list.innerHTML = '<div style="text-align:center;padding:40px;color:#555">Loading tracks...</div>';
-
-  try {
-    const q = encodeURIComponent(query || "upbeat");
-    const res = await fetch(`https://pixabay.com/api/videos/?key=${PIXABAY_MUSIC_KEY}&q=${q}&video_type=music&per_page=50&safesearch=true`);
-
-    // Pixabay video API doesn't have music directly - use their music API
-    // Fallback to curated list
-    const tracks = getCuratedTracks(query);
-    renderMusicTracks(tracks);
-  } catch(e) {
-    const tracks = getCuratedTracks(query);
-    renderMusicTracks(tracks);
-  }
+function loadMusicTracks(query) {
+  const tracks = getCuratedTracks(query);
+  renderMusicTracks(tracks);
 }
 
 function getCuratedTracks(query) {
