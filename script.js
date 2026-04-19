@@ -431,8 +431,8 @@ function renderTikTokPost(p) {
   if (p.image_url) {
     if (isSensitive && !revealedPosts.has(p.id)) {
       mediaHtml = `<div style="position:absolute;inset:0;overflow:hidden">${isVideo
-        ? `<video src="${esc(p.image_url)}" style="width:100%;height:100%;object-fit:cover;filter:blur(30px);transform:scale(1.1)" muted></video>`
-        : `<img src="${esc(p.image_url)}" style="width:100%;height:100%;object-fit:cover;filter:blur(30px);transform:scale(1.1)"/>`}
+        ? `<video src="${esc(p.image_url)}" style="width:100%;height:100%;object-fit:contain;filter:blur(30px);transform:scale(1.1);background:#000" muted></video>`
+        : `<img src="${esc(p.image_url)}" style="width:100%;height:100%;object-fit:contain;filter:blur(30px);transform:scale(1.1);background:#000"/>`}
         <div class="tiktok-sensitive-overlay" onclick="revealTikTokPost('${p.id}')">
           <div style="font-size:40px">⚠️</div>
           <div style="font-size:17px;font-weight:700;color:#fff">Sensitive Content</div>
@@ -440,9 +440,9 @@ function renderTikTokPost(p) {
         </div>
       </div>`;
     } else if (isVideo) {
-      mediaHtml = `<video id="vid-${p.id}" class="tiktok-media" src="${esc(p.image_url)}" autoplay muted loop playsinline style="object-fit:contain;background:#000"></video>`;
+      mediaHtml = `<video id="vid-${p.id}" src="${esc(p.image_url)}" autoplay muted loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:1"></video>`;
     } else {
-      mediaHtml = `<img class="tiktok-media" src="${esc(p.image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;background:#000"/>`;
+      mediaHtml = `<img src="${esc(p.image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;background:#000;z-index:1"/>`;
     }
   } else {
     mediaHtml = `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;background:#111">${catEmoji(p.category)}</div>`;
