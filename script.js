@@ -440,9 +440,13 @@ function renderTikTokPost(p) {
         </div>
       </div>`;
     } else if (isVideo) {
-      mediaHtml = `<video id="vid-${p.id}" src="${esc(p.image_url)}" autoplay muted loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:1"></video>`;
+      mediaHtml = `
+        <video src="${esc(p.image_url)}" autoplay muted loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(20px);transform:scale(1.1);z-index:1;opacity:0.7"></video>
+        <video id="vid-${p.id}" src="${esc(p.image_url)}" autoplay muted loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:2"></video>`;
     } else {
-      mediaHtml = `<img src="${esc(p.image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;background:#000;z-index:1"/>`;
+      mediaHtml = `
+        <img src="${esc(p.image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;filter:blur(20px);transform:scale(1.1);z-index:1;opacity:0.7"/>
+        <img src="${esc(p.image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;z-index:2"/>`;
     }
   } else {
     mediaHtml = `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;background:#111">${catEmoji(p.category)}</div>`;
@@ -479,7 +483,7 @@ function renderTikTokPost(p) {
   return `<div class="tiktok-post" id="feed-item-${p.id}">
     ${mediaHtml}
     ${overlayHtml}
-    <div class="tiktok-overlay-gradient"></div>
+    <div class="tiktok-overlay-gradient" style="z-index:3"></div>
 
     <!-- Bottom-left info -->
     <div class="tiktok-info">
