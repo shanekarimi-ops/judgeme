@@ -441,11 +441,11 @@ function renderTikTokPost(p) {
       </div>`;
     } else if (isVideo) {
       mediaHtml = `
-        <video src="${esc(p.image_url)}" autoplay muted loop playsinline style="position:absolute;top:-20%;left:-20%;width:140%;height:140%;object-fit:cover;filter:blur(25px);z-index:1;opacity:0.75"></video>
+        <video src="${esc(p.image_url)}" autoplay muted loop playsinline style="position:absolute;top:50%;left:50%;width:200%;height:200%;transform:translate(-50%,-50%);object-fit:cover;filter:blur(30px);z-index:1"></video>
         <video id="vid-${p.id}" src="${esc(p.image_url)}" autoplay muted loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:2"></video>`;
     } else {
       mediaHtml = `
-        <img src="${esc(p.image_url)}" style="position:absolute;top:-20%;left:-20%;width:140%;height:140%;object-fit:cover;display:block;filter:blur(25px);z-index:1;opacity:0.75"/>
+        <img src="${esc(p.image_url)}" style="position:absolute;top:50%;left:50%;width:200%;height:200%;transform:translate(-50%,-50%);object-fit:cover;display:block;filter:blur(30px);z-index:1"/>
         <img src="${esc(p.image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;z-index:2"/>`;
     }
   } else {
@@ -2213,8 +2213,8 @@ function sharePost(postId, e) {
         <button id="shr-twitter" style="padding:14px;border-radius:12px;border:1px solid #222;background:#1a1a1a;color:#fff;font-size:14px;cursor:pointer">𝕏 Twitter/X</button>
         <button id="shr-facebook" style="padding:14px;border-radius:12px;border:1px solid #222;background:#1a1a1a;color:#fff;font-size:14px;cursor:pointer">👥 Facebook</button>
         <button id="shr-text" style="padding:14px;border-radius:12px;border:1px solid #222;background:#1a1a1a;color:#fff;font-size:14px;cursor:pointer">💬 Text</button>
-        <button id="shr-instagram" style="padding:14px;border-radius:12px;border:1px solid #222;background:#1a1a1a;color:#fff;font-size:14px;cursor:pointer">📸 Instagram</button>
-        <button id="shr-tiktok" style="padding:14px;border-radius:12px;border:1px solid #222;background:#1a1a1a;color:#fff;font-size:14px;cursor:pointer">🎵 TikTok</button>
+        <button id="shr-instagram" style="padding:14px;border-radius:12px;border:1px solid #222;background:#1a1a1a;color:#fff;font-size:14px;cursor:pointer">📸 Stories</button>
+        <button id="shr-tiktok" style="padding:14px;border-radius:12px;border:1px solid #222;background:#1a1a1a;color:#fff;font-size:14px;cursor:pointer">🎵 Reels</button>
       </div>
       <button id="shr-copy" style="width:100%;padding:14px;border-radius:12px;border:1px solid #222;background:#1a1a1a;color:#fff;font-size:14px;cursor:pointer;margin-bottom:10px">🔗 Copy link</button>
       <button id="shr-cancel" style="width:100%;padding:12px;border-radius:12px;border:1px solid #333;background:transparent;color:#888;font-size:14px;cursor:pointer">Cancel</button>
@@ -2236,11 +2236,11 @@ function sharePost(postId, e) {
   document.getElementById("shr-facebook").onclick = () => { window.open("https://www.facebook.com/sharer/sharer.php?u=" + encodedUrl, "_blank"); close(); };
   document.getElementById("shr-text").onclick = () => { window.open("sms:?&body=" + encodedText + "%20" + encodedUrl); close(); };
   document.getElementById("shr-instagram").onclick = () => {
-    navigator.clipboard.writeText(shareUrl).then(() => showToast("Link copied! Open Instagram and paste in your story or bio 📸"));
+    navigator.clipboard.writeText(shareUrl).then(() => showToast("Link copied! Open your favorite app and paste to share 📸"));
     close();
   };
   document.getElementById("shr-tiktok").onclick = () => {
-    navigator.clipboard.writeText(shareUrl).then(() => showToast("Link copied! Open TikTok and paste in your bio or video caption 🎵"));
+    navigator.clipboard.writeText(shareUrl).then(() => showToast("Link copied! Open your favorite app and paste to share 🎵"));
     close();
   };
   document.getElementById("shr-copy").onclick = () => { navigator.clipboard.writeText(shareUrl).then(() => showToast("Link copied! ✓")); close(); };
