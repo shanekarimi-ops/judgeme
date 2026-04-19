@@ -504,18 +504,50 @@
         </div>
       </div>
 
-      <!-- EDIT CAPTION MODAL -->
-      <div id="edit-caption-modal" class="overlay" style="display:none" onclick="closeEditCaption(event)">
-        <div class="modal" onclick="event.stopPropagation()">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-            <h2 class="modal-title" style="font-size:18px;margin:0">Edit Caption</h2>
-            <button onclick="document.getElementById('edit-caption-modal').style.display='none'" style="background:none;border:none;color:#666;font-size:22px;cursor:pointer">✕</button>
+      <!-- EDIT POST MODAL (full editor) -->
+      <div id="edit-caption-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:99999;flex-direction:column;overflow-y:auto">
+        <div style="padding:52px 16px 16px;max-width:430px;margin:0 auto;width:100%">
+          <!-- Header -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <button onclick="closeEditPostModal()" style="background:none;border:none;color:#888;font-size:15px;cursor:pointer">Cancel</button>
+            <span style="color:#fff;font-size:17px;font-weight:700">✏️ Edit Post</span>
+            <button onclick="saveEditCaption()" style="background:#ff6b35;border:none;color:#fff;font-size:15px;font-weight:700;padding:6px 16px;border-radius:20px;cursor:pointer">Save</button>
           </div>
-          <input type="text" id="edit-caption-input" class="text-input" placeholder="Add a caption..." maxlength="120" style="margin-bottom:12px"/>
-          <div style="display:flex;gap:8px">
-            <button class="primary-btn" style="background:#2a2a2a;margin-top:0" onclick="document.getElementById('edit-caption-modal').style.display='none'">Cancel</button>
-            <button class="primary-btn" style="margin-top:0" onclick="saveEditCaption()">Save</button>
+
+          <!-- Image preview -->
+          <div id="edit-post-preview" style="width:100%;height:220px;border-radius:14px;overflow:hidden;background:#111;margin-bottom:16px;position:relative">
+            <!-- injected by JS -->
           </div>
+
+          <!-- Swap image button -->
+          <button onclick="document.getElementById('edit-post-file').click()" style="width:100%;padding:12px;border-radius:12px;border:1px solid #2a2a2a;background:#1a1a1a;color:#aaa;font-size:14px;cursor:pointer;margin-bottom:16px">
+            🔄 Swap Photo / Video
+          </button>
+          <input type="file" id="edit-post-file" accept="image/*,video/*" style="display:none" onchange="previewEditPost(this)"/>
+
+          <!-- Text overlay button -->
+          <button onclick="openEditTextOverlay()" style="width:100%;padding:12px;border-radius:12px;border:1px solid #ff6b35;background:transparent;color:#ff6b35;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:16px">
+            ✍️ Edit Text Overlay
+          </button>
+          <div id="edit-overlay-indicator" style="display:none;font-size:12px;color:#ff6b35;text-align:center;margin-top:-10px;margin-bottom:12px">✓ Text overlay updated</div>
+
+          <!-- Category -->
+          <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Category</div>
+          <div id="edit-cat-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+            <button class="cat-pill active" data-cat="Profile Pic">📸 Profile Pic</button>
+            <button class="cat-pill" data-cat="People">🧑 People</button>
+            <button class="cat-pill" data-cat="Places">📍 Places</button>
+            <button class="cat-pill" data-cat="Animals">🐾 Animals</button>
+            <button class="cat-pill" data-cat="Cars">🚗 Cars</button>
+            <button class="cat-pill" data-cat="Food">🍕 Food</button>
+            <button class="cat-pill" data-cat="Fashion">👗 Fashion</button>
+            <button class="cat-pill" data-cat="Other">⭐ Other</button>
+            <button class="cat-pill" data-cat="NSFW" id="edit-nsfw-pill" style="display:none">🔞 NSFW</button>
+          </div>
+
+          <!-- Caption -->
+          <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Caption</div>
+          <input type="text" id="edit-caption-input" class="text-input" placeholder="Add a caption..." maxlength="120" style="margin-bottom:24px"/>
         </div>
       </div>
 
