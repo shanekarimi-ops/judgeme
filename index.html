@@ -136,16 +136,15 @@
           <div class="filter-section-label">Category</div>
           <div class="categories-row" id="category-filter" style="padding:4px 0;flex-wrap:wrap;gap:6px">
             <button class="cat-pill active" data-cat="All">All</button>
-            <button class="cat-pill" data-cat="Outfit">👗 Outfit</button>
             <button class="cat-pill" data-cat="Profile Pic">📸 Profile Pic</button>
-            <button class="cat-pill" data-cat="Pick-up Line">💬 Pick-up Line</button>
-            <button class="cat-pill" data-cat="Haircut">✂️ Haircut</button>
-            <button class="cat-pill" data-cat="Pets">🐾 Pets</button>
-            <button class="cat-pill" data-cat="Locations">📍 Locations</button>
+            <button class="cat-pill" data-cat="People">🧑 People</button>
+            <button class="cat-pill" data-cat="Places">📍 Places</button>
+            <button class="cat-pill" data-cat="Animals">🐾 Animals</button>
             <button class="cat-pill" data-cat="Cars">🚗 Cars</button>
             <button class="cat-pill" data-cat="Food">🍕 Food</button>
-            <button class="cat-pill nsfw-pill" data-cat="NSFW" id="nsfw-pill" style="display:none">🔞 NSFW</button>
+            <button class="cat-pill" data-cat="Fashion">👗 Fashion</button>
             <button class="cat-pill" data-cat="Other">⭐ Other</button>
+            <button class="cat-pill nsfw-pill" data-cat="NSFW" id="nsfw-pill" style="display:none">🔞 NSFW</button>
           </div>
           <div class="filter-section-label" style="margin-top:14px">Min Star Rating</div>
           <div class="star-filter-row" id="star-filter-row" style="flex-wrap:wrap;gap:6px;padding:4px 0">
@@ -192,17 +191,16 @@
         </div>
         <div class="scroll-content">
           <div class="field-label">What are you submitting?</div>
-          <div class="categories-row" id="upload-cat-row">
-            <button class="cat-pill active" data-cat="Outfit">👗 Outfit</button>
-            <button class="cat-pill" data-cat="Profile Pic">📸 Profile Pic</button>
-            <button class="cat-pill" data-cat="Pick-up Line">💬 Pick-up Line</button>
-            <button class="cat-pill" data-cat="Haircut">✂️ Haircut</button>
-            <button class="cat-pill" data-cat="Pets">🐾 Pets</button>
-            <button class="cat-pill" data-cat="Locations">📍 Locations</button>
+          <div id="upload-cat-row" style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0">
+            <button class="cat-pill active" data-cat="Profile Pic">📸 Profile Pic</button>
+            <button class="cat-pill" data-cat="People">🧑 People</button>
+            <button class="cat-pill" data-cat="Places">📍 Places</button>
+            <button class="cat-pill" data-cat="Animals">🐾 Animals</button>
             <button class="cat-pill" data-cat="Cars">🚗 Cars</button>
             <button class="cat-pill" data-cat="Food">🍕 Food</button>
-            <button class="cat-pill nsfw-upload" data-cat="NSFW" id="nsfw-upload-pill" style="display:none">🔞 NSFW</button>
+            <button class="cat-pill" data-cat="Fashion">👗 Fashion</button>
             <button class="cat-pill" data-cat="Other">⭐ Other</button>
+            <button class="cat-pill nsfw-upload" data-cat="NSFW" id="nsfw-upload-pill" style="display:none">🔞 NSFW</button>
           </div>
           <div class="field-label">Photo or video</div>
           <div class="upload-zone" onclick="document.getElementById('post-file').click()">
