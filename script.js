@@ -441,11 +441,11 @@ function renderTikTokPost(p) {
       </div>`;
     } else if (isVideo) {
       mediaHtml = `
-        <video src="${esc(p.image_url)}" autoplay muted loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(20px);transform:scale(1.1);z-index:1;opacity:0.7"></video>
+        <video src="${esc(p.image_url)}" autoplay muted loop playsinline style="position:absolute;top:-20%;left:-20%;width:140%;height:140%;object-fit:cover;filter:blur(25px);z-index:1;opacity:0.75"></video>
         <video id="vid-${p.id}" src="${esc(p.image_url)}" autoplay muted loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:2"></video>`;
     } else {
       mediaHtml = `
-        <img src="${esc(p.image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;filter:blur(20px);transform:scale(1.1);z-index:1;opacity:0.7"/>
+        <img src="${esc(p.image_url)}" style="position:absolute;top:-20%;left:-20%;width:140%;height:140%;object-fit:cover;display:block;filter:blur(25px);z-index:1;opacity:0.75"/>
         <img src="${esc(p.image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;z-index:2"/>`;
     }
   } else {
