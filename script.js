@@ -1390,7 +1390,8 @@ async function loadMyProfile() {
     grid.innerHTML = posts.map((p) => `
       <div class="post-thumb-wrap">
         <div class="post-thumb" onclick="openLightbox('${p.id}')">${p.image_url ? `<img src="${esc(p.image_url)}"/>` : catEmoji(p.category)}</div>
-        <button class="post-delete-btn" onclick="deletePost('${p.id}',true)" title="Delete post" style="background:rgba(180,0,0,0.8)">✕</button>
+        <button class="post-delete-btn" onclick="deletePost('${p.id}',true)" title="Delete post" style="background:rgba(180,0,0,0.8);top:4px;right:4px">✕</button>
+        <button onclick="openEditPostModal('${p.id}')" title="Edit post" style="position:absolute;bottom:4px;right:4px;background:rgba(255,107,53,0.9);border:none;color:#fff;width:26px;height:26px;border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✏️</button>
       </div>`).join("");
   }
   const interests = currentUser.interests || [];
@@ -1645,30 +1646,130 @@ function togglePostMenu(e, postId) {
   if (!isOpen) menu.classList.add("open");
 }
 
-function editCaption(postId) {
-  document.querySelectorAll(".post-menu-dropdown.open").forEach((m) => m.classList.remove("open"));
+function editCaption(postId) { openEditPostModal(postId); }
+function closeEditCaption(e) { closeEditPostModal(); }
+
+let editPostNewFile = null;
+let editPostNewOverlay = null;
+
+function openEditPostModal(postId) {
+  document.querySelectorAll(".post-menu-dropdown.open").forEach(m => m.classList.remove("open"));
   editingPostId = postId;
+  editPostNewFile = null;
+  editPostNewOverlay = null;
   const p = postsCache[postId];
-  document.getElementById("edit-caption-input").value = p?.caption || "";
-  document.getElementById("edit-caption-modal").style.display = "flex";
-  setTimeout(() => document.getElementById("edit-caption-input").focus(), 50);
+  if (!p) return;
+  const modal = document.getElementById("edit-caption-modal");
+  modal.style.display = "flex";
+  modal.style.flexDirection = "column";
+  document.getElementById("edit-caption-input").value = p.caption || "";
+  if (currentUser?.is_adult) document.getElementById("edit-nsfw-pill").style.display = "inline-flex";
+  document.querySelectorAll("#edit-cat-row .cat-pill").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.cat === p.category);
+  });
+  const preview = document.getElementById("edit-post-preview");
+  if (p.image_url) {
+    const isVid = /\.(mp4|mov|webm|avi)$/i.test(p.image_url);
+    preview.innerHTML = isVid
+      ? `<video src="${esc(p.image_url)}" style="width:100%;height:100%;object-fit:cover" muted playsinline></video>`
+      : `<img src="${esc(p.image_url)}" style="width:100%;height:100%;object-fit:cover"/>`;
+  } else {
+    preview.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:60px">${catEmoji(p.category)}</div>`;
+  }
+  const ovInd = document.getElementById("edit-overlay-indicator");
+  if (p.text_overlay) {
+    ovInd.style.display = "block";
+    ovInd.textContent = "✓ Has text overlay";
+    try { editPostNewOverlay = typeof p.text_overlay === "string" ? JSON.parse(p.text_overlay) : p.text_overlay; } catch(e) {}
+  } else { ovInd.style.display = "none"; }
+  document.getElementById("edit-cat-row").onclick = (e) => {
+    const pill = e.target.closest(".cat-pill");
+    if (!pill) return;
+    document.querySelectorAll("#edit-cat-row .cat-pill").forEach(b => b.classList.remove("active"));
+    pill.classList.add("active");
+  };
 }
 
-function closeEditCaption(e) {
-  if (e && e.target !== document.getElementById("edit-caption-modal")) return;
+function closeEditPostModal() {
   document.getElementById("edit-caption-modal").style.display = "none";
   editingPostId = null;
+  editPostNewFile = null;
+  editPostNewOverlay = null;
+}
+
+function previewEditPost(input) {
+  const file = input.files[0];
+  if (!file) return;
+  editPostNewFile = file;
+  const url = URL.createObjectURL(file);
+  const preview = document.getElementById("edit-post-preview");
+  preview.innerHTML = file.type.startsWith("video")
+    ? `<video src="${url}" style="width:100%;height:100%;object-fit:cover" muted playsinline controls></video>`
+    : `<img src="${url}" style="width:100%;height:100%;object-fit:cover"/>`;
+}
+
+function openEditTextOverlay() {
+  const p = postsCache[editingPostId];
+  if (!p) return;
+  textOverlay = editPostNewOverlay || null;
+  window._editOverlayCallback = true;
+  const url = editPostNewFile ? URL.createObjectURL(editPostNewFile) : (p.image_url || "");
+  const isVid = editPostNewFile ? editPostNewFile.type.startsWith("video") : /\.(mp4|mov|webm|avi)$/i.test(url);
+  openTextEditorWithUrl(url, isVid);
+}
+
+function openTextEditorWithUrl(url, isVideo) {
+  const editor = document.getElementById("text-overlay-editor");
+  editor.style.display = "flex";
+  const container = document.getElementById("toe-media-container");
+  const existingMedia = container.querySelector("img,video");
+  if (existingMedia) existingMedia.remove();
+  const media = isVideo
+    ? Object.assign(document.createElement("video"), { src: url, muted: true, loop: true, autoplay: true, playsInline: true })
+    : Object.assign(document.createElement("img"), { src: url });
+  media.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block";
+  container.insertBefore(media, container.firstChild);
+  const textEl = document.getElementById("toe-text-el");
+  document.getElementById("toe-text-input").value = textOverlay?.text || "";
+  textEl.textContent = textOverlay?.text || "Your text here";
+  currentOverlayFont = textOverlay?.font || "bold";
+  currentOverlayColor = textOverlay?.color || "#ffffff";
+  document.getElementById("toe-color-picker").value = currentOverlayColor;
+  textEl.style.left = textOverlay ? textOverlay.xPct + "%" : "50%";
+  textEl.style.top = textOverlay ? textOverlay.yPct + "%" : "50%";
+  textEl.style.transform = "translate(-50%,-50%)";
+  applyFontToEl(textEl, currentOverlayFont, currentOverlayColor);
+  document.querySelectorAll(".toe-font-btn").forEach(b => b.classList.toggle("active", b.dataset.font === currentOverlayFont));
+  setupOverlayDrag(textEl);
 }
 
 async function saveEditCaption() {
   if (!editingPostId) return;
   const caption = document.getElementById("edit-caption-input").value.trim();
-  const { error } = await sb.from("posts").update({ caption: caption || null }).eq("id", editingPostId);
-  if (error) { showToast("Could not save caption"); return; }
-  if (postsCache[editingPostId]) postsCache[editingPostId].caption = caption;
-  document.getElementById("edit-caption-modal").style.display = "none";
-  editingPostId = null;
-  showToast("Caption updated ✓");
+  const activeCat = document.querySelector("#edit-cat-row .cat-pill.active");
+  const category = activeCat ? activeCat.dataset.cat : postsCache[editingPostId]?.category;
+  const updates = {
+    caption: caption || null,
+    category,
+    text_overlay: editPostNewOverlay ? JSON.stringify(editPostNewOverlay) : (postsCache[editingPostId]?.text_overlay || null),
+  };
+  if (editPostNewFile) {
+    const file = editPostNewFile;
+    const ext = file.name.split(".").pop().toLowerCase();
+    const fname = uid() + "." + ext;
+    const { error: uploadError } = await sb.storage.from("judge-me-uploads").upload(fname, file, { upsert: true, contentType: file.type });
+    if (!uploadError) {
+      const { data: ud } = sb.storage.from("judge-me-uploads").getPublicUrl(fname);
+      updates.image_url = ud.publicUrl;
+    }
+  }
+  const { error } = await sb.from("posts").update(updates).eq("id", editingPostId);
+  if (error) { showToast("Could not save changes"); return; }
+  if (postsCache[editingPostId]) Object.assign(postsCache[editingPostId], updates);
+  closeEditPostModal();
+  showToast("Post updated ✓");
+  loadMyProfile();
+  loadFeed();
 }
 
 let _deletingPostId = null;
@@ -2675,6 +2776,17 @@ function applyTextOverlay() {
   } else {
     textOverlay = null;
     document.getElementById("overlay-preview-indicator").style.display = "none";
+  }
+
+  // If in post edit mode, save back to editPostNewOverlay
+  if (window._editOverlayCallback) {
+    editPostNewOverlay = textOverlay;
+    window._editOverlayCallback = false;
+    const ovInd = document.getElementById("edit-overlay-indicator");
+    if (ovInd) {
+      ovInd.style.display = textOverlay ? "block" : "none";
+      ovInd.textContent = textOverlay ? "✓ Text overlay updated" : "";
+    }
   }
 
   editor.style.display = "none";
