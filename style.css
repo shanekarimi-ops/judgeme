@@ -345,7 +345,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   bottom: 90px;
   left: 12px;
   right: 82px;
-  z-index: 3;
+  z-index: 5;
 }
 .tiktok-username {
   font-size: 15px;
@@ -378,7 +378,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   position: absolute;
   right: 6px;
   bottom: 96px;
-  z-index: 3;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: center;
