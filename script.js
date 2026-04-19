@@ -646,6 +646,24 @@ function renderFeedItem(p) {
 }
 
 
+
+function startFeedReel(reelId, urls, duration) {
+  let idx = 0;
+  const total = urls.length;
+  setInterval(() => {
+    idx = (idx + 1) % total;
+    const imgs = document.querySelectorAll(`[data-reel="${reelId}"]`);
+    imgs.forEach((img, i) => {
+      img.style.opacity = i === idx ? "1" : "0";
+      img.style.zIndex = i === idx ? "2" : "1";
+    });
+    const dots = document.querySelectorAll(`.reel-dot-${reelId}`);
+    dots.forEach((dot, i) => {
+      dot.style.background = i === idx ? "#fff" : "rgba(255,255,255,0.4)";
+    });
+  }, duration);
+}
+
 // ── TIKTOK FEED HELPERS ───────────────────────────────────────────
 
 function showFilterModal() {
@@ -1171,11 +1189,33 @@ async function submitPost() {
   // Handle slideshow reel
   if (slideshowFiles.length > 0) {
     status.textContent = "Building reel... ⏳";
-    const reelFile = await buildAndUploadSlideshow();
-    if (reelFile) {
-      const ext = reelFile.name.split(".").pop().toLowerCase();
+    const reelResult = await buildAndUploadSlideshow();
+    if (reelResult && reelResult.isSlideshow) {
+      // iOS fallback: upload thumbnail image + store slideshow data in text_overlay
+      const thumbFile = reelResult.files[reelResult.thumbnailIdx] || reelResult.files[0];
+      const ext = thumbFile.name.split(".").pop().toLowerCase();
       const fname = uid() + "." + ext;
-      const { error: uploadError } = await sb.storage.from("judge-me-uploads").upload(fname, reelFile, { upsert: true, contentType: reelFile.type });
+      const { error: uploadError } = await sb.storage.from("judge-me-uploads").upload(fname, thumbFile, { upsert: true, contentType: thumbFile.type });
+      if (!uploadError) {
+        const { data: ud } = sb.storage.from("judge-me-uploads").getPublicUrl(fname);
+        imageUrl = ud.publicUrl;
+      }
+      // Upload all reel images and store URLs
+      const reelUrls = [];
+      for (const f of reelResult.files) {
+        const fn = uid() + "." + f.name.split(".").pop().toLowerCase();
+        const { error: e } = await sb.storage.from("judge-me-uploads").upload(fn, f, { upsert: true, contentType: f.type });
+        if (!e) {
+          const { data: ud } = sb.storage.from("judge-me-uploads").getPublicUrl(fn);
+          reelUrls.push(ud.publicUrl);
+        }
+      }
+      // Store reel data in text_overlay field
+      textOverlay = { isReel: true, urls: reelUrls, duration: slideshowDuration, thumbnailUrl: imageUrl, ...( textOverlay || {}) };
+    } else if (reelResult) {
+      const ext = reelResult.name.split(".").pop().toLowerCase();
+      const fname = uid() + "." + ext;
+      const { error: uploadError } = await sb.storage.from("judge-me-uploads").upload(fname, reelResult, { upsert: true, contentType: reelResult.type });
       if (!uploadError) {
         const { data: ud } = sb.storage.from("judge-me-uploads").getPublicUrl(fname);
         imageUrl = ud.publicUrl;
@@ -1754,27 +1794,63 @@ function openEditTextOverlay() {
 }
 
 function openTextEditorWithUrl(url, isVideo) {
+  // Hide edit post modal while overlay editor is open
+  const editModal = document.getElementById("edit-caption-modal");
+  if (editModal) editModal.style.display = "none";
+
   const editor = document.getElementById("text-overlay-editor");
   editor.style.display = "flex";
   const container = document.getElementById("toe-media-container");
   const existingMedia = container.querySelector("img,video");
   if (existingMedia) existingMedia.remove();
-  const media = isVideo
-    ? Object.assign(document.createElement("video"), { src: url, muted: true, loop: true, autoplay: true, playsInline: true })
-    : Object.assign(document.createElement("img"), { src: url });
-  media.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block";
-  container.insertBefore(media, container.firstChild);
+
+  if (isVideo) {
+    const vid = document.createElement("video");
+    vid.src = url;
+    vid.muted = true;
+    vid.loop = true;
+    vid.autoplay = true;
+    vid.playsInline = true;
+    vid.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block";
+    container.insertBefore(vid, container.firstChild);
+  } else {
+    // Use a fresh image with crossOrigin to handle Supabase URLs
+    const img = document.createElement("img");
+    img.crossOrigin = "anonymous";
+    img.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block";
+    img.onerror = () => {
+      // If CORS fails, try without crossOrigin
+      const img2 = document.createElement("img");
+      img2.src = url;
+      img2.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block";
+      const existing = container.querySelector("img");
+      if (existing) existing.remove();
+      container.insertBefore(img2, container.firstChild);
+    };
+    img.src = url;
+    container.insertBefore(img, container.firstChild);
+  }
+
   const textEl = document.getElementById("toe-text-el");
   document.getElementById("toe-text-input").value = textOverlay?.text || "";
   textEl.textContent = textOverlay?.text || "Your text here";
   currentOverlayFont = textOverlay?.font || "bold";
   currentOverlayColor = textOverlay?.color || "#ffffff";
+  currentOverlaySize = textOverlay?.size || 22;
   document.getElementById("toe-color-picker").value = currentOverlayColor;
   textEl.style.left = textOverlay ? textOverlay.xPct + "%" : "50%";
   textEl.style.top = textOverlay ? textOverlay.yPct + "%" : "50%";
   textEl.style.transform = "translate(-50%,-50%)";
   applyFontToEl(textEl, currentOverlayFont, currentOverlayColor);
   document.querySelectorAll(".toe-font-btn").forEach(b => b.classList.toggle("active", b.dataset.font === currentOverlayFont));
+  // Reset size buttons
+  document.querySelectorAll(".toe-size-btn").forEach(b => {
+    const isActive = parseInt(b.dataset.size) === currentOverlaySize;
+    b.style.border = isActive ? "1px solid #ff6b35" : "1px solid #2a2a2a";
+    b.style.background = isActive ? "#ff6b35" : "#111";
+    b.style.color = isActive ? "#fff" : "#aaa";
+    b.style.fontWeight = isActive ? "700" : "normal";
+  });
   setupOverlayDrag(textEl);
 }
 
@@ -2830,7 +2906,7 @@ function applyTextOverlay() {
     document.getElementById("overlay-preview-indicator").style.display = "none";
   }
 
-  // If in post edit mode, save back to editPostNewOverlay
+  // If in post edit mode, save back and re-show edit modal
   if (window._editOverlayCallback) {
     editPostNewOverlay = textOverlay;
     window._editOverlayCallback = false;
@@ -2839,6 +2915,9 @@ function applyTextOverlay() {
       ovInd.style.display = textOverlay ? "block" : "none";
       ovInd.textContent = textOverlay ? "✓ Text overlay updated" : "";
     }
+    // Re-show the edit post modal
+    const editModal = document.getElementById("edit-caption-modal");
+    if (editModal) editModal.style.display = "flex";
   }
 
   editor.style.display = "none";
@@ -2846,6 +2925,12 @@ function applyTextOverlay() {
 
 function closeTextEditor() {
   document.getElementById("text-overlay-editor").style.display = "none";
+  // Re-show edit post modal if we came from there
+  if (window._editOverlayCallback) {
+    window._editOverlayCallback = false;
+    const editModal = document.getElementById("edit-caption-modal");
+    if (editModal) editModal.style.display = "flex";
+  }
 }
 
 
@@ -2914,11 +2999,23 @@ function openReelEditor() {
   // Build thumb strip
   const strip = document.getElementById("reel-thumb-strip");
   strip.innerHTML = "";
+  reelThumbnailIdx = 0;
   reelImageUrls.forEach((url, i) => {
     const thumb = document.createElement("div");
-    thumb.style.cssText = `width:60px;height:60px;border-radius:10px;overflow:hidden;flex-shrink:0;border:2px solid ${i===0?"#ff6b35":"transparent"};cursor:pointer`;
+    thumb.style.cssText = `width:60px;height:60px;border-radius:10px;overflow:hidden;flex-shrink:0;border:2px solid ${i===0?"#ff6b35":"transparent"};cursor:pointer;position:relative`;
     thumb.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover"/>`;
-    thumb.onclick = () => jumpToSlide(i);
+    if (i === 0) thumb.innerHTML += `<div style="position:absolute;bottom:2px;left:2px;background:rgba(255,107,53,0.9);color:#fff;font-size:8px;padding:1px 4px;border-radius:4px;font-weight:700">COVER</div>`;
+    thumb.onclick = () => {
+      jumpToSlide(i);
+      // Set as thumbnail
+      reelThumbnailIdx = i;
+      document.querySelectorAll("#reel-thumb-strip div").forEach((t, j) => {
+        t.style.border = j === i ? "2px solid #ff6b35" : "2px solid transparent";
+        const coverBadge = t.querySelector("div");
+        if (coverBadge) coverBadge.remove();
+        if (j === i) t.innerHTML += `<div style="position:absolute;bottom:2px;left:2px;background:rgba(255,107,53,0.9);color:#fff;font-size:8px;padding:1px 4px;border-radius:4px;font-weight:700">COVER</div>`;
+      });
+    };
     strip.appendChild(thumb);
   });
 
@@ -3017,17 +3114,19 @@ function confirmReel() {
   showToast("Reel ready! Fill in details and post 🎞️");
 }
 
+let reelThumbnailIdx = 0; // which photo to use as thumbnail
+
 async function buildAndUploadSlideshow() {
   if (slideshowFiles.length === 0) return null;
   showToast("Building your reel... ⏳");
 
-  // Use canvas to stitch images into a video using MediaRecorder
+  // Try MediaRecorder with MP4 first (works on most devices), then WebM, then fallback
   const canvas = document.createElement("canvas");
   canvas.width = 720;
   canvas.height = 1280;
   const ctx = canvas.getContext("2d");
 
-  // Load all images first
+  // Load all images
   const images = await Promise.all(slideshowFiles.map(f => new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
@@ -3035,54 +3134,48 @@ async function buildAndUploadSlideshow() {
     img.src = URL.createObjectURL(f);
   })));
 
-  // Check MediaRecorder support
-  const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-    ? "video/webm;codecs=vp9"
-    : MediaRecorder.isTypeSupported("video/webm")
-      ? "video/webm"
-      : null;
+  const mimeType = MediaRecorder.isTypeSupported("video/mp4")
+    ? "video/mp4"
+    : MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+      ? "video/webm;codecs=vp9"
+      : MediaRecorder.isTypeSupported("video/webm")
+        ? "video/webm"
+        : null;
 
   if (!mimeType) {
-    // Fallback: just upload first image if recording not supported
-    showToast("Reel not supported on this device — uploading first photo");
-    return slideshowFiles[0];
+    // iOS fallback: store as JSON slideshow, render in feed as animated slideshow
+    showToast("Saving as photo slideshow...");
+    return { isSlideshow: true, files: slideshowFiles, thumbnailIdx: reelThumbnailIdx };
   }
 
+  const ext = mimeType.includes("mp4") ? "mp4" : "webm";
+
   return new Promise((resolve) => {
-    const stream = canvas.captureStream(30);
+    const stream = canvas.captureStream(24);
     const recorder = new MediaRecorder(stream, { mimeType });
     const chunks = [];
     recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
     recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: "video/webm" });
-      const file = new File([blob], "reel-" + Date.now() + ".webm", { type: "video/webm" });
+      const blob = new Blob(chunks, { type: mimeType });
+      const file = new File([blob], `reel-${Date.now()}.${ext}`, { type: mimeType });
       resolve(file);
     };
 
-    let frameIdx = 0;
     let frameCount = 0;
-    const fps = 30;
+    const fps = 24;
     const framesPerSlide = Math.round((slideshowDuration / 1000) * fps);
     const totalFrames = images.length * framesPerSlide;
 
     recorder.start();
-
     function drawFrame() {
-      if (frameCount >= totalFrames) {
-        recorder.stop();
-        return;
-      }
+      if (frameCount >= totalFrames) { recorder.stop(); return; }
       const img = images[Math.floor(frameCount / framesPerSlide)];
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      // Draw image centered with contain
       const scale = Math.min(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
       const w = img.naturalWidth * scale;
       const h = img.naturalHeight * scale;
-      const x = (canvas.width - w) / 2;
-      const y = (canvas.height - h) / 2;
-      ctx.drawImage(img, x, y, w, h);
+      ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
       frameCount++;
       setTimeout(drawFrame, 1000 / fps);
     }
