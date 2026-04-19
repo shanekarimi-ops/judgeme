@@ -237,6 +237,11 @@
             <button onclick="openTextEditor()" style="width:100%;padding:12px;border-radius:12px;border:1px solid #ff6b35;background:transparent;color:#ff6b35;font-size:14px;font-weight:600;cursor:pointer">✍️ Add Text Overlay</button>
             <div id="overlay-preview-indicator" style="display:none;font-size:12px;color:#ff6b35;text-align:center;margin-top:6px">✓ Text overlay added</div>
           </div>
+          <!-- Music button always visible -->
+          <div style="margin-top:10px">
+            <button onclick="openMusicPicker()" style="width:100%;padding:12px;border-radius:12px;border:1px solid #a78bfa;background:transparent;color:#a78bfa;font-size:14px;font-weight:600;cursor:pointer">🎵 Add Music</button>
+            <div id="music-preview-indicator" style="display:none;font-size:12px;color:#a78bfa;text-align:center;margin-top:6px">🎵 <span id="music-indicator-title"></span></div>
+          </div>
           <div class="field-label">Caption (optional)</div>
           <input type="text" id="post-caption" class="text-input" placeholder="Add context... e.g. 'first date outfit'" maxlength="120"/>
           <div class="sensitive-row">
@@ -711,6 +716,60 @@
 
         <!-- Photo strip -->
         <div id="reel-thumb-strip" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none"></div>
+      </div>
+    </div>
+
+    <!-- MUSIC PICKER MODAL -->
+    <div id="music-picker" style="display:none;position:fixed;inset:0;background:#0a0a0a;z-index:99998;flex-direction:column">
+      <!-- Header -->
+      <div style="padding:52px 16px 12px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:0.5px solid #1a1a1a">
+        <button onclick="closeMusicPicker()" style="background:none;border:none;color:#888;font-size:15px;cursor:pointer">Cancel</button>
+        <span style="color:#fff;font-size:17px;font-weight:700">🎵 Add Music</span>
+        <button onclick="confirmMusic()" style="background:#ff6b35;border:none;color:#fff;font-size:15px;font-weight:700;padding:6px 16px;border-radius:20px;cursor:pointer">Add</button>
+      </div>
+
+      <!-- Search -->
+      <div style="padding:12px 16px;flex-shrink:0">
+        <div style="position:relative">
+          <input type="text" id="music-search" placeholder="Search songs, moods, genres..." 
+            style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:10px 40px 10px 16px;color:#fff;font-size:14px;outline:none"
+            oninput="searchMusic(this.value)"/>
+          <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#666">🔍</span>
+        </div>
+      </div>
+
+      <!-- Mood filter pills -->
+      <div style="padding:0 16px 10px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;flex-shrink:0">
+        <button class="mood-pill active" onclick="filterMood('',this)" style="white-space:nowrap;padding:6px 14px;border-radius:20px;border:1.5px solid #ff6b35;background:transparent;color:#ff6b35;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0">All</button>
+        <button class="mood-pill" onclick="filterMood('hype',this)" style="white-space:nowrap;padding:6px 14px;border-radius:20px;border:1px solid #333;background:transparent;color:#888;font-size:13px;cursor:pointer;flex-shrink:0">🔥 Hype</button>
+        <button class="mood-pill" onclick="filterMood('chill',this)" style="white-space:nowrap;padding:6px 14px;border-radius:20px;border:1px solid #333;background:transparent;color:#888;font-size:13px;cursor:pointer;flex-shrink:0">😌 Chill</button>
+        <button class="mood-pill" onclick="filterMood('happy',this)" style="white-space:nowrap;padding:6px 14px;border-radius:20px;border:1px solid #333;background:transparent;color:#888;font-size:13px;cursor:pointer;flex-shrink:0">😄 Happy</button>
+        <button class="mood-pill" onclick="filterMood('romantic',this)" style="white-space:nowrap;padding:6px 14px;border-radius:20px;border:1px solid #333;background:transparent;color:#888;font-size:13px;cursor:pointer;flex-shrink:0">❤️ Romantic</button>
+        <button class="mood-pill" onclick="filterMood('dramatic',this)" style="white-space:nowrap;padding:6px 14px;border-radius:20px;border:1px solid #333;background:transparent;color:#888;font-size:13px;cursor:pointer;flex-shrink:0">🎭 Dramatic</button>
+        <button class="mood-pill" onclick="filterMood('funny',this)" style="white-space:nowrap;padding:6px 14px;border-radius:20px;border:1px solid #333;background:transparent;color:#888;font-size:13px;cursor:pointer;flex-shrink:0">😂 Funny</button>
+        <button class="mood-pill" onclick="filterMood('hip hop',this)" style="white-space:nowrap;padding:6px 14px;border-radius:20px;border:1px solid #333;background:transparent;color:#888;font-size:13px;cursor:pointer;flex-shrink:0">🎤 Hip Hop</button>
+        <button class="mood-pill" onclick="filterMood('pop',this)" style="white-space:nowrap;padding:6px 14px;border-radius:20px;border:1px solid #333;background:transparent;color:#888;font-size:13px;cursor:pointer;flex-shrink:0">🎵 Pop</button>
+        <button class="mood-pill" onclick="filterMood('jazz',this)" style="white-space:nowrap;padding:6px 14px;border-radius:20px;border:1px solid #333;background:transparent;color:#888;font-size:13px;cursor:pointer;flex-shrink:0">🎷 Jazz</button>
+        <button class="mood-pill" onclick="filterMood('classical',this)" style="white-space:nowrap;padding:6px 14px;border-radius:20px;border:1px solid #333;background:transparent;color:#888;font-size:13px;cursor:pointer;flex-shrink:0">🎻 Classical</button>
+      </div>
+
+      <!-- Currently selected track banner -->
+      <div id="music-selected-banner" style="display:none;padding:10px 16px;background:#1a0800;border-top:1px solid #ff6b35;border-bottom:1px solid #ff6b35;flex-shrink:0">
+        <div style="font-size:13px;color:#ff6b35;font-weight:700">✓ Selected: <span id="music-selected-title"></span></div>
+      </div>
+
+      <!-- Track list -->
+      <div id="music-track-list" style="flex:1;overflow-y:auto;padding:0 16px">
+        <div style="text-align:center;padding:40px;color:#555">Loading tracks...</div>
+      </div>
+
+      <!-- Currently playing bar -->
+      <div id="music-now-playing" style="display:none;padding:12px 16px;background:#111;border-top:0.5px solid #2a2a2a;flex-shrink:0;align-items:center;gap:12px">
+        <div style="flex:1;min-width:0">
+          <div id="music-np-title" style="font-size:13px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+          <div id="music-np-artist" style="font-size:11px;color:#666;margin-top:2px"></div>
+        </div>
+        <button onclick="stopMusicPreview()" style="background:rgba(255,107,53,0.2);border:1px solid #ff6b35;color:#ff6b35;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">⏹</button>
       </div>
     </div>
 
