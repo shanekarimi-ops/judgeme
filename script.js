@@ -380,6 +380,10 @@ async function loadFeed() {
   // Attach badge_tier to each post
   posts = posts.map(p => ({ ...p, badge_tier: badgeMap[p.user_id] || null }));
 
+  // Check DB for votes this user has already cast (survives deploys)
+  const postIds = posts.map(p => p.id);
+  checkUserVotes(postIds);
+
   container.innerHTML = posts.map((p) => renderTikTokPost(p)).join("");
   posts.forEach(p => { postsCache[p.id] = p; });
 
@@ -389,6 +393,12 @@ async function loadFeed() {
 
   // Pause/play videos on scroll
   setupTikTokScroll(container);
+
+  // Load jury comment counts for all posts
+  posts.forEach(p => loadJuryPreview(p.id));
+
+  // Track views for visible posts
+  if (posts.length > 0) trackPostView(posts[0].id);
 }
 
 function setupTikTokScroll(container) {
@@ -400,14 +410,18 @@ function setupTikTokScroll(container) {
       lastIdx = idx;
       posts.forEach((post, i) => {
         const vid = post.querySelector("video");
-        if (!vid) return;
-        if (i === idx) {
-          vid.play().catch(() => {});
-        } else {
-          vid.pause();
-          vid.currentTime = 0;
+        if (vid) {
+          if (i === idx) { vid.play().catch(() => {}); }
+          else { vid.pause(); vid.currentTime = 0; }
         }
       });
+      // Track view + load jury count for newly visible post
+      const visiblePost = posts[idx];
+      if (visiblePost) {
+        const pid = visiblePost.id.replace("feed-item-", "");
+        trackPostView(pid);
+        loadJuryPreview(pid);
+      }
     }
   }, { passive: true });
 }
@@ -418,7 +432,7 @@ function renderTikTokPost(p) {
 
   const avg = p.total_ratings > 0 ? (p.rating_sum / p.total_ratings).toFixed(1) : "–";
   const isOwn = currentUser && p.user_id === currentUser.id;
-  const alreadyVoted = localStorage.getItem("voted_" + p.id);
+  const alreadyVoted = localStorage.getItem("voted_" + p.id) || (p.user_voted);
   const isFavorited = localStorage.getItem("fav_" + p.id) === "1";
   const avatarHtml = p.avatar_url
     ? `<img src="${esc(p.avatar_url)}" />`
@@ -475,7 +489,7 @@ function renderTikTokPost(p) {
       const ov = typeof p.text_overlay === "string" ? JSON.parse(p.text_overlay) : p.text_overlay;
       if (ov && ov.text) {
         const fs = FONT_STYLES[ov.font] || FONT_STYLES.bold;
-        overlayHtml = `<div class="post-text-overlay" style="left:${ov.xPct}%;top:${ov.yPct}%;transform:translate(-50%,-50%);color:${esc(ov.color)};font-family:${esc(fs.fontFamily)};font-weight:${esc(fs.fontWeight)};font-style:${esc(fs.fontStyle)};text-shadow:${esc(fs.textShadow)};letter-spacing:${esc(fs.letterSpacing)};font-size:22px">${esc(ov.text)}</div>`;
+        overlayHtml = `<div class="post-text-overlay" style="left:${ov.xPct}%;top:${ov.yPct}%;transform:translate(-50%,-50%);color:${esc(ov.color)};font-family:${esc(fs.fontFamily)};font-weight:${esc(fs.fontWeight)};font-style:${esc(fs.fontStyle)};text-shadow:${esc(fs.textShadow)};letter-spacing:${esc(fs.letterSpacing)};font-size:${ov.size||22}px">${esc(ov.text)}</div>`;
       }
     } catch(e) {}
   }
@@ -1407,7 +1421,10 @@ async function loadMyProfile() {
     posts.forEach((p) => { postsCache[p.id] = p; });
     grid.innerHTML = posts.map((p) => `
       <div class="post-thumb-wrap">
-        <div class="post-thumb" onclick="openLightbox('${p.id}')">${p.image_url ? `<img src="${esc(p.image_url)}"/>` : catEmoji(p.category)}</div>
+        <div class="post-thumb" onclick="openLightbox('${p.id}')" style="position:relative">
+          ${p.image_url ? `<img src="${esc(p.image_url)}"/>` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:32px">${catEmoji(p.category)}</div>`}
+          ${p.image_url && /\.(mp4|mov|webm|avi|webm)$/i.test(p.image_url) ? `<div style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,0.6);color:#fff;font-size:10px;padding:2px 5px;border-radius:6px">▶️</div>` : ""}
+        </div>
         <button class="post-delete-btn" onclick="deletePost('${p.id}',true)" title="Delete post" style="background:rgba(180,0,0,0.8);top:4px;right:4px">✕</button>
         <button onclick="openEditPostModal('${p.id}')" title="Edit post" style="position:absolute;bottom:4px;right:4px;background:rgba(255,107,53,0.9);border:none;color:#fff;width:26px;height:26px;border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✏️</button>
       </div>`).join("");
@@ -2649,6 +2666,7 @@ const FONT_STYLES = {
 
 let currentOverlayFont = "bold";
 let currentOverlayColor = "#ffffff";
+let currentOverlaySize = 22;
 
 function openTextEditor() {
   const fileInput = document.getElementById("post-file");
@@ -2709,7 +2727,7 @@ function applyFontToEl(el, font, color) {
   el.style.textShadow = s.textShadow;
   el.style.letterSpacing = s.letterSpacing;
   el.style.color = color;
-  el.style.fontSize = "22px";
+  el.style.fontSize = (currentOverlaySize || 22) + "px";
 }
 
 function updateOverlayText() {
@@ -2728,6 +2746,22 @@ function setOverlayFont(font, btn) {
 function updateOverlayColor(color) {
   currentOverlayColor = color;
   applyFontToEl(document.getElementById("toe-text-el"), currentOverlayFont, color);
+}
+
+function setOverlaySize(size, btn) {
+  currentOverlaySize = size;
+  document.querySelectorAll(".toe-size-btn").forEach(b => {
+    b.style.border = "1px solid #2a2a2a";
+    b.style.background = "#111";
+    b.style.color = "#aaa";
+    b.style.fontWeight = "normal";
+  });
+  btn.style.border = "1px solid #ff6b35";
+  btn.style.background = "#ff6b35";
+  btn.style.color = "#fff";
+  btn.style.fontWeight = "700";
+  const el = document.getElementById("toe-text-el");
+  if (el) el.style.fontSize = size + "px";
 }
 
 function setupOverlayDrag(el) {
@@ -2789,7 +2823,7 @@ function applyTextOverlay() {
   const yPct = ((elRect.top + elRect.height / 2) - wrapRect.top) / wrapRect.height * 100;
 
   if (text) {
-    textOverlay = { text, font: currentOverlayFont, color: currentOverlayColor, xPct: Math.round(xPct), yPct: Math.round(yPct) };
+    textOverlay = { text, font: currentOverlayFont, color: currentOverlayColor, size: currentOverlaySize || 22, xPct: Math.round(xPct), yPct: Math.round(yPct) };
     document.getElementById("overlay-preview-indicator").style.display = "block";
   } else {
     textOverlay = null;
@@ -3151,6 +3185,29 @@ function closeCamera() {
   }
   document.getElementById("camera-modal").style.display = "none";
   document.getElementById("camera-preview").srcObject = null;
+}
+
+
+
+// ── VIEW TRACKING ─────────────────────────────────────────────────
+const viewedPosts = new Set();
+async function trackPostView(postId) {
+  if (!postId || viewedPosts.has(postId)) return;
+  viewedPosts.add(postId);
+  const p = postsCache[postId];
+  if (!p) return;
+  const newCount = (p.view_count || 0) + 1;
+  await sb.from("posts").update({ view_count: newCount }).eq("id", postId);
+  if (postsCache[postId]) postsCache[postId].view_count = newCount;
+}
+
+// ── VOTE PERSISTENCE VIA DB ───────────────────────────────────────
+async function checkUserVotes(postIds) {
+  if (!currentUser || !postIds.length) return;
+  const { data } = await sb.from("votes").select("post_id").eq("voter_id", currentUser.id).in("post_id", postIds);
+  (data || []).forEach(v => {
+    localStorage.setItem("voted_" + v.post_id, "1");
+  });
 }
 
 
