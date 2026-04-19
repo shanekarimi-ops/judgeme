@@ -440,9 +440,9 @@ function renderTikTokPost(p) {
         </div>
       </div>`;
     } else if (isVideo) {
-      mediaHtml = `<video id="vid-${p.id}" class="tiktok-media" src="${esc(p.image_url)}" autoplay muted loop playsinline></video>`;
+      mediaHtml = `<video id="vid-${p.id}" class="tiktok-media" src="${esc(p.image_url)}" autoplay muted loop playsinline style="object-fit:contain;background:#000"></video>`;
     } else {
-      mediaHtml = `<img class="tiktok-media" src="${esc(p.image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block"/>`;
+      mediaHtml = `<img class="tiktok-media" src="${esc(p.image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;background:#000"/>`;
     }
   } else {
     mediaHtml = `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;background:#111">${catEmoji(p.category)}</div>`;
