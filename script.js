@@ -3116,16 +3116,19 @@ function confirmReel() {
   document.getElementById("reel-editor").style.display = "none";
 
   // Show preview in upload screen
-  const firstUrl = reelImageUrls[0];
+  const firstUrl = reelImageUrls[reelThumbnailIdx] || reelImageUrls[0];
   document.getElementById("post-preview").innerHTML = `
     <div style="position:relative;display:inline-block;width:100%">
       <img src="${firstUrl}" style="max-width:100%;max-height:200px;border-radius:10px;object-fit:cover"/>
       <div style="position:absolute;top:8px;left:8px;background:rgba(255,107,53,0.9);color:#fff;font-size:12px;font-weight:700;padding:3px 8px;border-radius:8px">🎞️ ${slideshowFiles.length} photos</div>
     </div>`;
+  // Show text overlay button
   document.getElementById("text-overlay-btn-wrap").style.display = "block";
   textOverlay = null;
   document.getElementById("overlay-preview-indicator").style.display = "none";
-  showToast("Reel ready! Fill in details and post 🎞️");
+  // Make upload zone clickable to open reel editor again
+  document.getElementById("upload-zone-wrap").style.pointerEvents = "auto";
+  showToast("Reel ready! Add text, music, caption and post 🎞️");
 }
 
 let reelThumbnailIdx = 0; // which photo to use as thumbnail
@@ -3422,24 +3425,46 @@ function togglePreview(trackId, url) {
     return;
   }
   stopMusicPreview();
-  musicPreviewAudio = new Audio(url);
-  musicPreviewAudio.volume = 0.7;
-  musicPreviewAudio.play().catch(() => showToast("Could not preview this track"));
-  currentPreviewId = trackId;
+
   const track = CURATED_TRACKS.find(t => t.id === trackId);
-  if (track) {
-    const np = document.getElementById("music-now-playing");
-    np.style.display = "flex";
-    document.getElementById("music-np-title").textContent = track.title;
-    document.getElementById("music-np-artist").textContent = track.artist + " · " + track.mood;
-    const btn = document.getElementById("play-btn-" + trackId);
-    if (btn) btn.textContent = "⏸";
-  }
-  musicPreviewAudio.onended = () => {
-    stopMusicPreview();
-    const q = document.getElementById("music-search").value;
-    renderMusicTracks(getCuratedTracks(q));
+  if (!track) return;
+
+  const audio = new Audio();
+  audio.crossOrigin = "anonymous";
+  audio.volume = 0.8;
+
+  audio.onerror = () => {
+    // CORS blocked — try without crossOrigin
+    const audio2 = new Audio(url);
+    audio2.volume = 0.8;
+    audio2.play().then(() => {
+      musicPreviewAudio = audio2;
+      currentPreviewId = trackId;
+      showNowPlaying(track, trackId);
+      audio2.onended = () => { stopMusicPreview(); renderMusicTracks(getCuratedTracks(document.getElementById("music-search").value)); };
+    }).catch(() => showToast("Preview unavailable — tap to select and hear in your post 🎵"));
   };
+
+  audio.oncanplay = () => {
+    audio.play().then(() => {
+      musicPreviewAudio = audio;
+      currentPreviewId = trackId;
+      showNowPlaying(track, trackId);
+      audio.onended = () => { stopMusicPreview(); renderMusicTracks(getCuratedTracks(document.getElementById("music-search").value)); };
+    }).catch(audio.onerror);
+  };
+
+  audio.src = url;
+  audio.load();
+}
+
+function showNowPlaying(track, trackId) {
+  const np = document.getElementById("music-now-playing");
+  np.style.display = "flex";
+  document.getElementById("music-np-title").textContent = track.title;
+  document.getElementById("music-np-artist").textContent = track.artist + " · " + track.mood;
+  const btn = document.getElementById("play-btn-" + trackId);
+  if (btn) btn.textContent = "⏸";
 }
 
 function stopMusicPreview() {
