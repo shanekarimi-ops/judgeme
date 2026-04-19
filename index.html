@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+    <title>Judge Me 🔥</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  </head>
+  <body>
+
+    <!-- AGE GATE -->
+    <div id="age-gate" class="overlay">
+      <div class="modal">
+        <div class="modal-logo">🔥</div>
+        <h1 class="modal-title">Judge Me</h1>
+        <p class="modal-sub">The app where the people decide</p>
+        <div class="age-form">
+          <label class="field-label">Enter your birthday</label>
+          <input type="date" id="age-input" class="text-input" placeholder="MM/DD/YYYY"/>
+          <div id="age-error" class="error-msg" style="display:none">You must be 13 or older to use Judge Me</div>
+          <button class="primary-btn" onclick="checkAge()">Continue →</button>
+          <button onclick="showReturningUser()" style="width:100%;padding:15px;border-radius:14px;background:transparent;border:1px solid #ff6b35;color:#ff6b35;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px">Already have an account? Sign in →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RETURNING USER QUICK LOGIN -->
+    <div id="returning-gate" class="overlay" style="display:none">
+      <div class="modal">
+        <div class="modal-logo">👋</div>
+        <h2 class="modal-title">Welcome back!</h2>
+        <p class="modal-sub">Enter your username to sign back in</p>
+        <div class="age-form">
+          <label class="field-label">Username</label>
+          <input type="text" id="returning-username" class="text-input" placeholder="@yourname" maxlength="30" onkeydown="if(event.key==='Enter')returningLogin()"/>
+          <div id="returning-error" class="error-msg" style="display:none">Username not found. Check spelling and try again.</div>
+          <button class="primary-btn" onclick="returningLogin()">Sign in →</button>
+          <div style="text-align:center;margin-top:8px">
+            <button onclick="document.getElementById('returning-gate').style.display='none';document.getElementById('age-gate').style.display='flex'" style="background:none;border:none;color:#666;font-size:13px;cursor:pointer;text-decoration:underline">← Back</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ONBOARDING -->
+    <div id="onboarding" class="overlay" style="display:none">
+      <div class="modal">
+        <div class="modal-logo">👤</div>
+        <h2 class="modal-title">Set up your profile</h2>
+        <p class="modal-sub">Let people know who's getting judged</p>
+        <div class="onboard-form">
+          <label class="field-label">Username *</label>
+          <input type="text" id="ob-username" class="text-input" placeholder="@yourname" maxlength="30"/>
+          <label class="field-label">Profile photo</label>
+          <div class="avatar-upload" onclick="document.getElementById('avatar-input').click()">
+            <div id="avatar-preview-wrap">
+              <div class="avatar-placeholder">📷 Tap to upload</div>
+            </div>
+          </div>
+          <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="previewAvatar(this)"/>
+          <label class="field-label">Bio</label>
+          <input type="text" id="ob-bio" class="text-input" placeholder="Tell people about yourself..." maxlength="100"/>
+          <label class="field-label">Location</label>
+          <input type="text" id="ob-location" class="text-input" placeholder="City, State" maxlength="50"/>
+          <label class="field-label">Website or social link</label>
+          <input type="text" id="ob-website" class="text-input" placeholder="instagram.com/you" maxlength="100"/>
+          <label class="field-label">Interests</label>
+          <div class="interests-grid onboard-form">
+            <button class="interest-pill" data-val="Fashion">👗 Fashion</button>
+            <button class="interest-pill" data-val="Fitness">💪 Fitness</button>
+            <button class="interest-pill" data-val="Dating">💘 Dating</button>
+            <button class="interest-pill" data-val="Hair">✂️ Hair</button>
+            <button class="interest-pill" data-val="Music">🎵 Music</button>
+            <button class="interest-pill" data-val="Art">🎨 Art</button>
+            <button class="interest-pill" data-val="Food">🍕 Food</button>
+            <button class="interest-pill" data-val="Travel">✈️ Travel</button>
+            <button class="interest-pill" data-val="Pets">🐾 Pets</button>
+            <button class="interest-pill" data-val="Cars">🚗 Cars</button>
+          </div>
+          <div id="ob-error" class="error-msg" style="display:none">Please enter a username</div>
+          <button class="primary-btn" onclick="saveProfile()">Let's go 🔥</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="app" style="display:none">
+
+      <!-- SCREEN: FEED (TikTok fullscreen) -->
+      <div class="screen active" id="screen-feed" style="position:relative;overflow:hidden;background:#000">
+
+        <!-- Floating top bar -->
+        <div style="position:absolute;top:0;left:0;right:0;z-index:20;padding:52px 16px 12px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(to bottom,rgba(0,0,0,0.6) 0%,transparent 100%)">
+          <button class="topbar-avatar" onclick="showScreen('screen-profile')">
+            <div id="topbar-avatar" class="avatar-sm">?</div>
+          </button>
+          <div style="display:flex;gap:6px">
+            <button class="tiktok-top-btn" onclick="switchFeedTab('discover')" id="tab-discover">For You</button>
+            <button class="tiktok-top-btn" onclick="switchFeedTab('following')" id="tab-following">Following</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button onclick="showScreen('screen-notifications')" style="position:relative;background:none;border:none;cursor:pointer;padding:4px;font-size:20px;line-height:1;color:#fff">
+              🔔<div id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#ff6b35;color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center;padding:0 3px"></div>
+            </button>
+            <button onclick="showFilterModal()" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:4px">⚙️</button>
+          </div>
+        </div>
+
+        <!-- Fullscreen post container — snaps on scroll -->
+        <div id="tiktok-feed" style="height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch">
+          <div id="tiktok-loading" style="height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px">Loading...</div>
+        </div>
+
+        <div class="tab-bar" style="z-index:30">
+          <div class="tab active" onclick="showScreen('screen-feed')"><div class="tab-icon">🏠</div><div>Feed</div></div>
+          <div class="tab" onclick="showScreen('screen-upload')"><div class="tab-icon">➕</div><div>Post</div></div>
+          <div class="tab" onclick="showScreen('screen-search')"><div class="tab-icon">🔍</div><div>Search</div></div>
+          <div class="tab" onclick="showScreen('screen-analytics')"><div class="tab-icon">📊</div><div>Stats</div></div>
+          <div class="tab" onclick="showScreen('screen-messages')" style="position:relative"><div class="tab-icon">💬</div><div>DMs</div><div id="dm-tab-badge" style="display:none;position:absolute;top:4px;right:8px;background:#ff6b35;color:#fff;font-size:9px;font-weight:700;min-width:14px;height:14px;border-radius:7px;align-items:center;justify-content:center;padding:0 2px"></div></div>
+          <div class="tab" onclick="showScreen('screen-profile')"><div class="tab-icon">👤</div><div>Profile</div></div>
+        </div>
+      </div>
+
+      <!-- FILTER MODAL (replaces filter panel) -->
+      <div id="filter-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:flex-end;justify-content:center" onclick="closeFilterModal(event)">
+        <div style="background:#111;border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:430px;max-height:80vh;overflow-y:auto" onclick="event.stopPropagation()">
+          <div style="width:40px;height:4px;background:#333;border-radius:2px;margin:0 auto 16px"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h2 style="color:#fff;font-size:17px;font-weight:700;margin:0">⚙️ Filter</h2>
+            <button onclick="resetFilters()" style="background:none;border:none;color:#ff4444;font-size:13px;cursor:pointer">Reset</button>
+          </div>
+          <div class="filter-section-label">Category</div>
+          <div class="categories-row" id="category-filter" style="padding:4px 0;flex-wrap:wrap;gap:6px">
+            <button class="cat-pill active" data-cat="All">All</button>
+            <button class="cat-pill" data-cat="Outfit">👗 Outfit</button>
+            <button class="cat-pill" data-cat="Profile Pic">📸 Profile Pic</button>
+            <button class="cat-pill" data-cat="Pick-up Line">💬 Pick-up Line</button>
+            <button class="cat-pill" data-cat="Haircut">✂️ Haircut</button>
+            <button class="cat-pill" data-cat="Pets">🐾 Pets</button>
+            <button class="cat-pill" data-cat="Locations">📍 Locations</button>
+            <button class="cat-pill" data-cat="Cars">🚗 Cars</button>
+            <button class="cat-pill" data-cat="Food">🍕 Food</button>
+            <button class="cat-pill nsfw-pill" data-cat="NSFW" id="nsfw-pill" style="display:none">🔞 NSFW</button>
+            <button class="cat-pill" data-cat="Other">⭐ Other</button>
+          </div>
+          <div class="filter-section-label" style="margin-top:14px">Min Star Rating</div>
+          <div class="star-filter-row" id="star-filter-row" style="flex-wrap:wrap;gap:6px;padding:4px 0">
+            <button class="star-filter-pill active" data-min="0">All</button>
+            <button class="star-filter-pill" data-min="1">⭐ 1</button>
+            <button class="star-filter-pill" data-min="2">⭐ 2</button>
+            <button class="star-filter-pill" data-min="3">⭐ 3</button>
+            <button class="star-filter-pill" data-min="4">⭐ 4</button>
+            <button class="star-filter-pill" data-min="5">⭐ 5</button>
+            <button class="star-filter-pill" data-min="6">⭐ 6</button>
+            <button class="star-filter-pill" data-min="7">⭐ 7</button>
+            <button class="star-filter-pill" data-min="8">⭐ 8</button>
+            <button class="star-filter-pill" data-min="9">⭐ 9</button>
+            <button class="star-filter-pill" data-min="10">⭐ 10</button>
+          </div>
+          <button class="primary-btn" style="margin-top:16px" onclick="applyFilters()">Apply Filters</button>
+        </div>
+      </div>
+
+      <!-- SCREEN: VOTE -->
+      <div class="screen" id="screen-vote">
+        <div class="topbar">
+          <button class="back-btn" onclick="showScreen('screen-feed')">← Back</button>
+          <span class="app-title">Judge This</span>
+          <span style="width:64px"></span>
+        </div>
+        <div id="vote-content" class="scroll-content"></div>
+        <div class="tab-bar">
+          <div class="tab" onclick="showScreen('screen-feed')"><div class="tab-icon">🏠</div><div>Feed</div></div>
+          <div class="tab" onclick="showScreen('screen-upload')"><div class="tab-icon">➕</div><div>Post</div></div>
+          <div class="tab" onclick="showScreen('screen-search')"><div class="tab-icon">🔍</div><div>Search</div></div>
+          <div class="tab" onclick="showScreen('screen-analytics')"><div class="tab-icon">📊</div><div>Stats</div></div>
+          <div class="tab" onclick="showScreen('screen-messages')" style="position:relative"><div class="tab-icon">💬</div><div id="dm-tab-label">DMs</div><div id="dm-tab-badge" style="display:none;position:absolute;top:4px;right:8px;background:#ff6b35;color:#fff;font-size:9px;font-weight:700;min-width:14px;height:14px;border-radius:7px;align-items:center;justify-content:center;padding:0 2px"></div></div>
+          <div class="tab" onclick="showScreen('screen-profile')"><div class="tab-icon">👤</div><div>Profile</div></div>
+        </div>
+      </div>
+
+      <!-- SCREEN: UPLOAD -->
+      <div class="screen" id="screen-upload">
+        <div class="topbar">
+          <button class="back-btn" onclick="showScreen('screen-feed')">← Back</button>
+          <span class="app-title">Get Judged</span>
+          <span style="width:64px"></span>
+        </div>
+        <div class="scroll-content">
+          <div class="field-label">What are you submitting?</div>
+          <div class="categories-row" id="upload-cat-row">
+            <button class="cat-pill active" data-cat="Outfit">👗 Outfit</button>
+            <button class="cat-pill" data-cat="Profile Pic">📸 Profile Pic</button>
+            <button class="cat-pill" data-cat="Pick-up Line">💬 Pick-up Line</button>
+            <button class="cat-pill" data-cat="Haircut">✂️ Haircut</button>
+            <button class="cat-pill" data-cat="Pets">🐾 Pets</button>
+            <button class="cat-pill" data-cat="Locations">📍 Locations</button>
+            <button class="cat-pill" data-cat="Cars">🚗 Cars</button>
+            <button class="cat-pill" data-cat="Food">🍕 Food</button>
+            <button class="cat-pill nsfw-upload" data-cat="NSFW" id="nsfw-upload-pill" style="display:none">🔞 NSFW</button>
+            <button class="cat-pill" data-cat="Other">⭐ Other</button>
+          </div>
+          <div class="field-label">Photo or video</div>
+          <div class="upload-zone" onclick="document.getElementById('post-file').click()">
+            <div id="post-preview">
+              <div class="upload-icon">📷</div>
+              <div class="upload-label">Tap to upload</div>
+              <div class="upload-sub">Photo or video from your camera roll</div>
+            </div>
+          </div>
+          <input type="file" id="post-file" accept="image/*,video/*" style="display:none" onchange="previewPost(this)"/>
+          <div id="text-overlay-btn-wrap" style="display:none;margin-top:10px">
+            <button onclick="openTextEditor()" style="width:100%;padding:12px;border-radius:12px;border:1px solid #ff6b35;background:transparent;color:#ff6b35;font-size:14px;font-weight:600;cursor:pointer">✍️ Add Text Overlay</button>
+            <div id="overlay-preview-indicator" style="display:none;font-size:12px;color:#ff6b35;text-align:center;margin-top:6px">✓ Text overlay added</div>
+          </div>
+          <div class="field-label">Caption (optional)</div>
+          <input type="text" id="post-caption" class="text-input" placeholder="Add context... e.g. 'first date outfit'" maxlength="120"/>
+          <div class="sensitive-row">
+            <label class="sensitive-label">
+              <input type="checkbox" id="sensitive-toggle"/>
+              <span>⚠️ Mark as sensitive content</span>
+            </label>
+            <div class="sensitive-hint">Sensitive posts are blurred until viewers choose to reveal them</div>
+          </div>
+          <button class="primary-btn" style="margin-top:24px" onclick="submitPost()">Post for Judgment 🔥</button>
+          <div id="post-status" class="status-msg"></div>
+        </div>
+        <div class="tab-bar">
+          <div class="tab" onclick="showScreen('screen-feed')"><div class="tab-icon">🏠</div><div>Feed</div></div>
+          <div class="tab active"><div class="tab-icon">➕</div><div>Post</div></div>
+          <div class="tab" onclick="showScreen('screen-search')"><div class="tab-icon">🔍</div><div>Search</div></div>
+          <div class="tab" onclick="showScreen('screen-analytics')"><div class="tab-icon">📊</div><div>Stats</div></div>
+          <div class="tab" onclick="showScreen('screen-messages')" style="position:relative"><div class="tab-icon">💬</div><div id="dm-tab-label">DMs</div><div id="dm-tab-badge" style="display:none;position:absolute;top:4px;right:8px;background:#ff6b35;color:#fff;font-size:9px;font-weight:700;min-width:14px;height:14px;border-radius:7px;align-items:center;justify-content:center;padding:0 2px"></div></div>
+          <div class="tab" onclick="showScreen('screen-profile')"><div class="tab-icon">👤</div><div>Profile</div></div>
+        </div>
+      </div>
+
+      <!-- SCREEN: SEARCH -->
+      <div class="screen" id="screen-search">
+        <div class="topbar">
+          <span style="width:64px"></span>
+          <span class="app-title">🔍 Find Friends</span>
+          <span style="width:64px"></span>
+        </div>
+        <div class="search-bar-wrap">
+          <input type="text" id="search-input" class="search-input" placeholder="Search by username..." oninput="onSearchInput()" autocomplete="off" autocorrect="off" autocapitalize="off"/>
+          <button class="search-clear" onclick="clearSearch()">✕</button>
+        </div>
+        <div id="search-results" class="search-results">
+          <div class="loading" style="padding:20px">Type a username to search</div>
+        </div>
+        <div class="tab-bar">
+          <div class="tab" onclick="showScreen('screen-feed')"><div class="tab-icon">🏠</div><div>Feed</div></div>
+          <div class="tab" onclick="showScreen('screen-upload')"><div class="tab-icon">➕</div><div>Post</div></div>
+          <div class="tab active"><div class="tab-icon">🔍</div><div>Search</div></div>
+          <div class="tab" onclick="showScreen('screen-analytics')"><div class="tab-icon">📊</div><div>Stats</div></div>
+          <div class="tab" onclick="showScreen('screen-messages')" style="position:relative"><div class="tab-icon">💬</div><div id="dm-tab-label">DMs</div><div id="dm-tab-badge" style="display:none;position:absolute;top:4px;right:8px;background:#ff6b35;color:#fff;font-size:9px;font-weight:700;min-width:14px;height:14px;border-radius:7px;align-items:center;justify-content:center;padding:0 2px"></div></div>
+          <div class="tab" onclick="showScreen('screen-profile')"><div class="tab-icon">👤</div><div>Profile</div></div>
+        </div>
+      </div>
+
+      <!-- SCREEN: ANALYTICS -->
+      <div class="screen" id="screen-analytics">
+        <div class="topbar">
+          <span style="width:64px"></span>
+          <span class="app-title">📊 Your Stats</span>
+          <span style="width:64px"></span>
+        </div>
+        <div class="scroll-content">
+          <div class="analytics-summary">
+            <div class="analytics-card"><div class="analytics-num" id="an-total-views">0</div><div class="analytics-label">👁 Total views</div></div>
+            <div class="analytics-card"><div class="analytics-num" id="an-total-votes">0</div><div class="analytics-label">🗳 Total votes</div></div>
+            <div class="analytics-card"><div class="analytics-num" id="an-avg-rating">–</div><div class="analytics-label">⭐ Avg rating</div></div>
+            <div class="analytics-card"><div class="analytics-num" id="an-fire-ratio">–</div><div class="analytics-label">🔥 Fire ratio</div></div>
+          </div>
+          <div class="field-label" style="margin-top:20px">Post breakdown</div>
+          <div id="analytics-posts-list"><div class="loading">Loading stats...</div></div>
+        </div>
+        <div class="tab-bar">
+          <div class="tab" onclick="showScreen('screen-feed')"><div class="tab-icon">🏠</div><div>Feed</div></div>
+          <div class="tab" onclick="showScreen('screen-upload')"><div class="tab-icon">➕</div><div>Post</div></div>
+          <div class="tab" onclick="showScreen('screen-search')"><div class="tab-icon">🔍</div><div>Search</div></div>
+          <div class="tab active"><div class="tab-icon">📊</div><div>Stats</div></div>
+          <div class="tab" onclick="showScreen('screen-messages')" style="position:relative"><div class="tab-icon">💬</div><div id="dm-tab-label">DMs</div><div id="dm-tab-badge" style="display:none;position:absolute;top:4px;right:8px;background:#ff6b35;color:#fff;font-size:9px;font-weight:700;min-width:14px;height:14px;border-radius:7px;align-items:center;justify-content:center;padding:0 2px"></div></div>
+          <div class="tab" onclick="showScreen('screen-profile')"><div class="tab-icon">👤</div><div>Profile</div></div>
+        </div>
+      </div>
+
+      <!-- SCREEN: RESULT -->
+      <div class="screen" id="screen-result">
+        <div class="topbar">
+          <button class="back-btn" onclick="showScreen('screen-feed')">← Back</button>
+          <span class="app-title">Your Results</span>
+          <span style="width:64px"></span>
+        </div>
+        <div class="scroll-content">
+          <div class="result-card" id="result-card">
+            <div class="result-card-inner">
+              <div class="result-header">
+                <div class="result-avatar-wrap"><div class="result-avatar" id="rc-avatar">J</div></div>
+                <div class="result-header-info">
+                  <div class="result-name" id="rc-name">Name</div>
+                  <div class="result-cat" id="rc-cat">Category</div>
+                </div>
+                <div class="result-app-badge">🔥 Judge Me</div>
+              </div>
+              <div class="result-scores">
+                <div class="result-score-item"><div class="score-num" id="rc-fire">🔥 0</div><div class="score-label">Fire</div></div>
+                <div class="result-score-item"><div class="score-num" id="rc-ice">🧊 0</div><div class="score-label">Ice</div></div>
+                <div class="result-score-item"><div class="score-num" id="rc-rating">–</div><div class="score-label">Rating</div></div>
+              </div>
+              <div class="verdict-row"><div class="verdict-badge" id="rc-verdict">The jury is out!</div></div>
+              <div class="result-url">judgeme.app</div>
+            </div>
+          </div>
+          <div class="field-label" style="margin-top:20px">Share your results</div>
+          <div class="share-grid">
+            <button class="share-btn" onclick="saveResultImage()">💾 Save image</button>
+            <button class="share-btn" onclick="nativeShare()">📤 Share</button>
+            <button class="share-btn" onclick="shareToTwitter()">𝕏 Twitter/X</button>
+            <button class="share-btn" onclick="copyLink()">🔗 Copy link</button>
+          </div>
+          <div class="share-hint">Save the image then post it to Instagram or TikTok!</div>
+        </div>
+        <div class="tab-bar">
+          <div class="tab" onclick="showScreen('screen-feed')"><div class="tab-icon">🏠</div><div>Feed</div></div>
+          <div class="tab" onclick="showScreen('screen-upload')"><div class="tab-icon">➕</div><div>Post</div></div>
+          <div class="tab" onclick="showScreen('screen-search')"><div class="tab-icon">🔍</div><div>Search</div></div>
+          <div class="tab" onclick="showScreen('screen-analytics')"><div class="tab-icon">📊</div><div>Stats</div></div>
+          <div class="tab" onclick="showScreen('screen-messages')" style="position:relative"><div class="tab-icon">💬</div><div id="dm-tab-label">DMs</div><div id="dm-tab-badge" style="display:none;position:absolute;top:4px;right:8px;background:#ff6b35;color:#fff;font-size:9px;font-weight:700;min-width:14px;height:14px;border-radius:7px;align-items:center;justify-content:center;padding:0 2px"></div></div>
+          <div class="tab" onclick="showScreen('screen-profile')"><div class="tab-icon">👤</div><div>Profile</div></div>
+        </div>
+      </div>
+
+      <!-- SCREEN: PROFILE -->
+      <div class="screen" id="screen-profile">
+        <div class="topbar">
+          <button class="back-btn" onclick="showScreen('screen-feed')">← Back</button>
+          <span class="app-title">Profile</span>
+          <button class="icon-btn" onclick="showEditProfile()">Edit</button>
+        </div>
+        <div class="scroll-content">
+          <div class="profile-header">
+            <div class="profile-avatar-wrap" style="position:relative;display:inline-block">
+              <div class="profile-avatar" id="profile-avatar-display">?</div>
+              <button onclick="document.getElementById('avatar-edit-input').click()" style="position:absolute;bottom:0;right:0;width:28px;height:28px;border-radius:50%;background:#ff6b35;border:2px solid #0a0a0a;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px">✏️</button>
+              <input type="file" id="avatar-edit-input" accept="image/*" style="display:none" onchange="updateProfileAvatar(this)"/>
+            </div>
+            <div class="profile-info">
+              <div class="profile-username" id="profile-username-display">@username</div>
+              <div class="profile-bio" id="profile-bio-display"></div>
+              <div class="profile-location" id="profile-location-display"></div>
+              <div class="profile-website" id="profile-website-display"></div>
+            </div>
+          </div>
+          <div class="profile-stats" ontouchstart="">
+            <div class="profile-stat"><div class="stat-num" id="stat-posts">0</div><div class="stat-label">Posts</div></div>
+            <button class="profile-stat-btn" onclick="showFollowList('followers')"><div class="stat-num" id="stat-followers">0</div><div class="stat-label">Followers</div></button>
+            <button class="profile-stat-btn" onclick="showFollowList('following')"><div class="stat-num" id="stat-following">0</div><div class="stat-label">Following</div></button>
+          </div>
+          <div class="profile-interests" id="profile-interests-display"></div>
+
+          <!-- PROFILE TABS: Posts / Favorites -->
+          <div class="profile-content-tabs">
+            <button class="profile-content-tab active" id="ptab-posts" onclick="switchProfileTab('posts')">📷 Posts</button>
+            <button class="profile-content-tab" id="ptab-favorites" onclick="switchProfileTab('favorites')">😍 Favorites</button>
+          </div>
+
+          <div id="my-posts-grid" class="posts-grid"><div class="loading">Loading...</div></div>
+          <div id="my-favorites-grid" class="posts-grid" style="display:none"><div class="loading">Loading...</div></div>
+        </div>
+        <div class="tab-bar">
+          <div class="tab" onclick="showScreen('screen-feed')"><div class="tab-icon">🏠</div><div>Feed</div></div>
+          <div class="tab" onclick="showScreen('screen-upload')"><div class="tab-icon">➕</div><div>Post</div></div>
+          <div class="tab" onclick="showScreen('screen-search')"><div class="tab-icon">🔍</div><div>Search</div></div>
+          <div class="tab" onclick="showScreen('screen-analytics')"><div class="tab-icon">📊</div><div>Stats</div></div>
+          <div class="tab" onclick="showScreen('screen-messages')" style="position:relative"><div class="tab-icon">💬</div><div id="dm-tab-label">DMs</div><div id="dm-tab-badge" style="display:none;position:absolute;top:4px;right:8px;background:#ff6b35;color:#fff;font-size:9px;font-weight:700;min-width:14px;height:14px;border-radius:7px;align-items:center;justify-content:center;padding:0 2px"></div></div>
+          <div class="tab active"><div class="tab-icon">👤</div><div>Profile</div></div>
+        </div>
+      </div>
+
+      <!-- SCREEN: OTHER USER -->
+      <div class="screen" id="screen-user">
+        <div class="topbar">
+          <button class="back-btn" onclick="showScreen('screen-feed')">← Back</button>
+          <span class="app-title" id="user-screen-title">Profile</span>
+          <span style="width:64px"></span>
+        </div>
+        <div class="scroll-content">
+          <div class="profile-header">
+            <div class="profile-avatar-wrap">
+              <div class="profile-avatar" id="user-avatar-display">?</div>
+            </div>
+            <div class="profile-info">
+              <div class="profile-username" id="user-username-display">@username</div>
+              <div class="profile-bio" id="user-bio-display"></div>
+              <div class="profile-location" id="user-location-display"></div>
+            </div>
+          </div>
+          <div class="profile-stats" ontouchstart="">
+            <div class="profile-stat"><div class="stat-num" id="user-stat-posts">0</div><div class="stat-label">Posts</div></div>
+            <button class="profile-stat-btn" onclick="showFollowList('followers')"><div class="stat-num" id="user-stat-followers">0</div><div class="stat-label">Followers</div></button>
+            <button class="profile-stat-btn" onclick="showFollowList('following')"><div class="stat-num" id="user-stat-following">0</div><div class="stat-label">Following</div></button>
+          </div>
+          <button class="follow-btn" id="follow-btn" onclick="toggleFollow()" style="display:none">Follow</button>
+          <div class="field-label" style="margin-top:16px">Posts</div>
+          <div id="user-posts-grid" class="posts-grid"></div>
+        </div>
+        <div class="tab-bar">
+          <div class="tab" onclick="showScreen('screen-feed')"><div class="tab-icon">🏠</div><div>Feed</div></div>
+          <div class="tab" onclick="showScreen('screen-upload')"><div class="tab-icon">➕</div><div>Post</div></div>
+          <div class="tab" onclick="showScreen('screen-search')"><div class="tab-icon">🔍</div><div>Search</div></div>
+          <div class="tab" onclick="showScreen('screen-analytics')"><div class="tab-icon">📊</div><div>Stats</div></div>
+          <div class="tab" onclick="showScreen('screen-messages')" style="position:relative"><div class="tab-icon">💬</div><div id="dm-tab-label">DMs</div><div id="dm-tab-badge" style="display:none;position:absolute;top:4px;right:8px;background:#ff6b35;color:#fff;font-size:9px;font-weight:700;min-width:14px;height:14px;border-radius:7px;align-items:center;justify-content:center;padding:0 2px"></div></div>
+          <div class="tab" onclick="showScreen('screen-profile')"><div class="tab-icon">👤</div><div>Profile</div></div>
+        </div>
+      </div>
+
+      <!-- SCREEN: NOTIFICATIONS (bell icon → back button) -->
+      <div class="screen" id="screen-notifications">
+        <div class="topbar">
+          <button class="back-btn" onclick="showScreen('screen-feed')">← Back</button>
+          <span class="app-title">🔔 Alerts</span>
+          <span style="width:64px"></span>
+        </div>
+        <div id="notif-list" style="flex:1;overflow-y:auto;padding-bottom:40px">
+          <div class="loading">Loading...</div>
+        </div>
+      </div>
+
+      <!-- SCREEN: MESSAGES INBOX -->
+      <div class="screen" id="screen-messages">
+        <div class="topbar">
+          <span style="width:64px"></span>
+          <span class="app-title">💬 Messages</span>
+          <button class="icon-btn" onclick="showNewDM()">+ New</button>
+        </div>
+        <div id="dm-inbox-list" style="flex:1;overflow-y:auto;padding-bottom:100px">
+          <div class="loading">Loading...</div>
+        </div>
+        <div class="tab-bar">
+          <div class="tab" onclick="showScreen('screen-feed')"><div class="tab-icon">🏠</div><div>Feed</div></div>
+          <div class="tab" onclick="showScreen('screen-upload')"><div class="tab-icon">➕</div><div>Post</div></div>
+          <div class="tab" onclick="showScreen('screen-search')"><div class="tab-icon">🔍</div><div>Search</div></div>
+          <div class="tab" onclick="showScreen('screen-analytics')"><div class="tab-icon">📊</div><div>Stats</div></div>
+          <div class="tab active"><div class="tab-icon">💬</div><div>DMs</div></div>
+          <div class="tab" onclick="showScreen('screen-profile')"><div class="tab-icon">👤</div><div>Profile</div></div>
+        </div>
+      </div>
+
+      <!-- SCREEN: DM CONVERSATION -->
+      <div class="screen" id="screen-dm-convo">
+        <div class="topbar">
+          <button class="back-btn" onclick="showScreen('screen-messages')">← Back</button>
+          <div style="display:flex;align-items:center;gap:8px;flex:1;justify-content:center;cursor:pointer" onclick="openUserProfile(dmOtherUserId)">
+            <div id="dm-convo-avatar" style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#ff6b35,#c62a85);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;overflow:hidden"></div>
+            <span id="dm-convo-name" class="app-title" style="font-size:17px"></span>
+          </div>
+          <span style="width:64px"></span>
+        </div>
+        <div id="dm-messages-list" style="flex:1;overflow-y:auto;padding:12px 16px 16px;display:flex;flex-direction:column;gap:8px"></div>
+        <div style="padding:10px 16px 16px;border-top:0.5px solid #1a1a1a;background:#0a0a0a;flex-shrink:0;display:flex;gap:10px;align-items:center">
+          <input type="text" id="dm-input" placeholder="Message..." maxlength="500"
+            style="flex:1;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:20px;padding:10px 16px;color:#fff;font-size:14px;outline:none"
+            onkeydown="if(event.key==='Enter')sendDM()"/>
+          <button onclick="sendDM()" style="background:#ff6b35;border:none;color:#fff;font-size:13px;font-weight:700;padding:10px 18px;border-radius:20px;cursor:pointer">Send</button>
+        </div>
+      </div>
+
+      <!-- EDIT PROFILE MODAL -->
+      <div id="edit-profile-modal" class="overlay" style="display:none" onclick="closeEditProfile(event)">
+        <div class="modal" onclick="event.stopPropagation()" style="max-height:88vh;overflow-y:auto">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <h2 class="modal-title" style="font-size:18px;margin:0">Edit Profile</h2>
+            <button onclick="document.getElementById('edit-profile-modal').style.display='none'" style="background:none;border:none;color:#666;font-size:22px;cursor:pointer">✕</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <label class="field-label">Username</label>
+            <input type="text" id="ep-username" class="text-input" placeholder="@yourname" maxlength="30"/>
+            <label class="field-label">Bio</label>
+            <input type="text" id="ep-bio" class="text-input" placeholder="Tell people about yourself..." maxlength="100"/>
+            <label class="field-label">Location</label>
+            <input type="text" id="ep-location" class="text-input" placeholder="City, State" maxlength="50"/>
+            <label class="field-label">Website or social link</label>
+            <input type="text" id="ep-website" class="text-input" placeholder="instagram.com/you" maxlength="100"/>
+            <label class="field-label">Interests</label>
+            <div class="interests-grid" id="ep-interests-grid">
+              <button class="interest-pill" data-val="Fashion" onclick="this.classList.toggle('active')">👗 Fashion</button>
+              <button class="interest-pill" data-val="Fitness" onclick="this.classList.toggle('active')">💪 Fitness</button>
+              <button class="interest-pill" data-val="Dating" onclick="this.classList.toggle('active')">💘 Dating</button>
+              <button class="interest-pill" data-val="Hair" onclick="this.classList.toggle('active')">✂️ Hair</button>
+              <button class="interest-pill" data-val="Music" onclick="this.classList.toggle('active')">🎵 Music</button>
+              <button class="interest-pill" data-val="Art" onclick="this.classList.toggle('active')">🎨 Art</button>
+              <button class="interest-pill" data-val="Food" onclick="this.classList.toggle('active')">🍕 Food</button>
+              <button class="interest-pill" data-val="Travel" onclick="this.classList.toggle('active')">✈️ Travel</button>
+              <button class="interest-pill" data-val="Pets" onclick="this.classList.toggle('active')">🐾 Pets</button>
+              <button class="interest-pill" data-val="Cars" onclick="this.classList.toggle('active')">🚗 Cars</button>
+            </div>
+            <div id="ep-error" class="error-msg" style="display:none">Please enter a username</div>
+            <button class="primary-btn" id="ep-save-btn" onclick="saveEditProfile()">Save changes</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- EDIT CAPTION MODAL -->
+      <div id="edit-caption-modal" class="overlay" style="display:none" onclick="closeEditCaption(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <h2 class="modal-title" style="font-size:18px;margin:0">Edit Caption</h2>
+            <button onclick="document.getElementById('edit-caption-modal').style.display='none'" style="background:none;border:none;color:#666;font-size:22px;cursor:pointer">✕</button>
+          </div>
+          <input type="text" id="edit-caption-input" class="text-input" placeholder="Add a caption..." maxlength="120" style="margin-bottom:12px"/>
+          <div style="display:flex;gap:8px">
+            <button class="primary-btn" style="background:#2a2a2a;margin-top:0" onclick="document.getElementById('edit-caption-modal').style.display='none'">Cancel</button>
+            <button class="primary-btn" style="margin-top:0" onclick="saveEditCaption()">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DELETE CONFIRM MODAL -->
+      <div id="delete-confirm-modal" class="overlay" style="display:none">
+        <div class="modal" onclick="event.stopPropagation()">
+          <div style="font-size:36px;text-align:center;margin-bottom:12px">🗑️</div>
+          <h2 class="modal-title" style="font-size:18px;margin-bottom:8px">Delete this post?</h2>
+          <p style="color:#666;font-size:14px;text-align:center;margin-bottom:20px">This can't be undone.</p>
+          <div style="display:flex;gap:8px">
+            <button class="primary-btn" style="background:#2a2a2a;margin-top:0" onclick="cancelDeletePost()">Cancel</button>
+            <button class="primary-btn" style="background:#cc2222;margin-top:0" onclick="confirmDeletePost()">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- FOLLOW LIST MODAL -->
+      <div id="follow-list-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:none;align-items:center;justify-content:center;padding:20px" onclick="closeFollowList(event)">
+        <div style="background:#111;border-radius:20px;border:0.5px solid #2a2a2a;padding:20px;width:100%;max-width:400px;max-height:88vh;overflow-y:auto" onclick="event.stopPropagation()">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <h2 style="font-size:18px;font-weight:700;color:#fff;margin:0" id="follow-list-title">Followers</h2>
+            <button onclick="document.getElementById('follow-list-modal').style.display='none'" style="background:none;border:none;color:#666;font-size:22px;cursor:pointer">✕</button>
+          </div>
+          <div id="follow-list-content"><div style="text-align:center;padding:40px;color:#555">Loading...</div></div>
+        </div>
+      </div>
+
+      <!-- LIGHTBOX -->
+      <div id="lightbox" onclick="closeLightbox()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.97);z-index:99999;align-items:center;justify-content:center;flex-direction:column">
+        <button onclick="closeLightbox()" style="position:absolute;top:56px;right:20px;background:rgba(255,255,255,0.1);border:none;color:#fff;font-size:24px;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:1">✕</button>
+        <div id="lightbox-media" style="max-width:100%;max-height:85vh;display:flex;align-items:center;justify-content:center;padding:20px"></div>
+        <div id="lightbox-caption" style="color:#aaa;font-size:14px;text-align:center;padding:12px 20px;max-width:400px"></div>
+      </div>
+
+    </div><!-- end #app -->
+
+    <!-- TEXT OVERLAY EDITOR -->
+    <div id="text-overlay-editor" style="display:none;position:fixed;inset:0;background:#000;z-index:99999;flex-direction:column">
+
+      <!-- Top bar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:52px 16px 12px;flex-shrink:0">
+        <button onclick="closeTextEditor()" style="background:none;border:none;color:#fff;font-size:15px;cursor:pointer;padding:4px 8px;border-radius:8px;background:rgba(255,255,255,0.15)">Cancel</button>
+        <span style="color:#fff;font-size:16px;font-weight:700">✍️ Add Text</span>
+        <button onclick="applyTextOverlay()" style="background:#ff6b35;border:none;color:#fff;font-size:15px;font-weight:700;cursor:pointer;padding:6px 16px;border-radius:20px">Done</button>
+      </div>
+
+      <!-- Preview canvas with draggable text -->
+      <div id="toe-preview-wrap" style="flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#111;margin:0 0 8px">
+        <div id="toe-media-container" style="position:relative;width:100%;height:100%">
+          <!-- media injected here -->
+          <div id="toe-text-el" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);cursor:grab;user-select:none;touch-action:none;text-align:center;padding:4px 8px;z-index:10;white-space:pre-wrap;word-break:break-word;max-width:90%">
+            Sample Text
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls panel -->
+      <div style="background:#111;border-top:0.5px solid #2a2a2a;flex-shrink:0;padding:12px 16px 24px">
+
+        <!-- Text input -->
+        <input type="text" id="toe-text-input" placeholder="Type your text..." maxlength="80"
+          style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:15px;outline:none;margin-bottom:12px"
+          oninput="updateOverlayText()"/>
+
+        <!-- Font picker -->
+        <div style="margin-bottom:10px">
+          <div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Font</div>
+          <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none">
+            <button class="toe-font-btn active" data-font="bold" onclick="setOverlayFont('bold',this)" style="font-weight:900;font-family:sans-serif">Bold</button>
+            <button class="toe-font-btn" data-font="italic" onclick="setOverlayFont('italic',this)" style="font-style:italic;font-family:serif">Italic</button>
+            <button class="toe-font-btn" data-font="handwriting" onclick="setOverlayFont('handwriting',this)" style="font-family:'Segoe Script',cursive">Script</button>
+            <button class="toe-font-btn" data-font="neon" onclick="setOverlayFont('neon',this)" style="font-family:monospace;letter-spacing:2px">Neon</button>
+            <button class="toe-font-btn" data-font="classic" onclick="setOverlayFont('classic',this)" style="font-family:Georgia,serif">Classic</button>
+            <button class="toe-font-btn" data-font="shadow" onclick="setOverlayFont('shadow',this)" style="font-family:Impact,sans-serif">Shadow</button>
+          </div>
+        </div>
+
+        <!-- Color picker -->
+        <div>
+          <div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Color</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="color" id="toe-color-picker" value="#ffffff" oninput="updateOverlayColor(this.value)"
+              style="width:44px;height:44px;border:none;border-radius:50%;cursor:pointer;background:none;padding:0"/>
+            <div style="flex:1;display:flex;gap:6px;flex-wrap:wrap">
+              <div onclick="updateOverlayColor('#ffffff');document.getElementById('toe-color-picker').value='#ffffff'" style="width:28px;height:28px;border-radius:50%;background:#fff;cursor:pointer;border:2px solid #444"></div>
+              <div onclick="updateOverlayColor('#000000');document.getElementById('toe-color-picker').value='#000000'" style="width:28px;height:28px;border-radius:50%;background:#000;cursor:pointer;border:2px solid #444"></div>
+              <div onclick="updateOverlayColor('#ff6b35');document.getElementById('toe-color-picker').value='#ff6b35'" style="width:28px;height:28px;border-radius:50%;background:#ff6b35;cursor:pointer;border:2px solid #444"></div>
+              <div onclick="updateOverlayColor('#ff0040');document.getElementById('toe-color-picker').value='#ff0040'" style="width:28px;height:28px;border-radius:50%;background:#ff0040;cursor:pointer;border:2px solid #444"></div>
+              <div onclick="updateOverlayColor('#ffcc00');document.getElementById('toe-color-picker').value='#ffcc00'" style="width:28px;height:28px;border-radius:50%;background:#ffcc00;cursor:pointer;border:2px solid #444"></div>
+              <div onclick="updateOverlayColor('#00e5ff');document.getElementById('toe-color-picker').value='#00e5ff'" style="width:28px;height:28px;border-radius:50%;background:#00e5ff;cursor:pointer;border:2px solid #444"></div>
+              <div onclick="updateOverlayColor('#00ff88');document.getElementById('toe-color-picker').value='#00ff88'" style="width:28px;height:28px;border-radius:50%;background:#00ff88;cursor:pointer;border:2px solid #444"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
