@@ -3435,33 +3435,19 @@ function togglePreview(trackId, url) {
   const track = CURATED_TRACKS.find(t => t.id === trackId);
   if (!track) return;
 
-  const audio = new Audio();
-  audio.crossOrigin = "anonymous";
+  const audio = new Audio(url);
   audio.volume = 0.8;
-
-  audio.onerror = () => {
-    // CORS blocked — try without crossOrigin
-    const audio2 = new Audio(url);
-    audio2.volume = 0.8;
-    audio2.play().then(() => {
-      musicPreviewAudio = audio2;
-      currentPreviewId = trackId;
-      showNowPlaying(track, trackId);
-      audio2.onended = () => { stopMusicPreview(); renderMusicTracks(getCuratedTracks(document.getElementById("music-search").value)); };
-    }).catch(() => showToast("Preview unavailable — tap to select and hear in your post 🎵"));
-  };
-
-  audio.oncanplay = () => {
-    audio.play().then(() => {
-      musicPreviewAudio = audio;
-      currentPreviewId = trackId;
-      showNowPlaying(track, trackId);
-      audio.onended = () => { stopMusicPreview(); renderMusicTracks(getCuratedTracks(document.getElementById("music-search").value)); };
-    }).catch(audio.onerror);
-  };
-
-  audio.src = url;
-  audio.load();
+  audio.play().then(() => {
+    musicPreviewAudio = audio;
+    currentPreviewId = trackId;
+    showNowPlaying(track, trackId);
+    audio.onended = () => {
+      stopMusicPreview();
+      renderMusicTracks(getCuratedTracks(document.getElementById("music-search").value));
+    };
+  }).catch(() => {
+    showToast("Could not play — check your volume is on 🔊");
+  });
 }
 
 function showNowPlaying(track, trackId) {
@@ -3485,57 +3471,43 @@ function stopMusicPreview() {
   document.querySelectorAll("[id^='play-btn-']").forEach(b => { if (b.textContent === "⏸") b.textContent = "▶"; });
 }
 
-// ── CURATED TRACK LIBRARY (royalty-free tracks) ─────────────────
+// ── CURATED TRACK LIBRARY (Kevin MacLeod via Archive.org - CORS enabled) ──
+// All tracks CC BY 3.0 - Kevin MacLeod (incompetech.com)
+const BASE = "https://archive.org/download/Kevin-MacLeod_Royalty-Free_2017_FullAlbum/Kevin%20MacLeod%20-%2000%20-%20";
 const CURATED_TRACKS = [
   // 🔥 HYPE
-  {id:"h01",title:"Action Strike",artist:"Free Music",mood:"Hype",genre:"Electronic",duration:"2:30",tags:["hype","energy","action","sport"],url:"https://www.bensound.com/bensound-music/bensound-actionable.mp3"},
-  {id:"h02",title:"Epic Cinematic",artist:"Free Music",mood:"Hype",genre:"Cinematic",duration:"2:15",tags:["hype","epic","cinematic","power"],url:"https://www.bensound.com/bensound-music/bensound-epic.mp3"},
-  {id:"h03",title:"Energetic Rock",artist:"Free Music",mood:"Hype",genre:"Rock",duration:"2:00",tags:["hype","rock","energy","guitar"],url:"https://www.bensound.com/bensound-music/bensound-extremeaction.mp3"},
-  {id:"h04",title:"Dubstep Hype",artist:"Free Music",mood:"Hype",genre:"Electronic",duration:"2:20",tags:["hype","dubstep","bass","drop"],url:"https://www.bensound.com/bensound-music/bensound-dubstep.mp3"},
-  {id:"h05",title:"Punky",artist:"Free Music",mood:"Hype",genre:"Rock",duration:"1:55",tags:["hype","punk","rock","attitude"],url:"https://www.bensound.com/bensound-music/bensound-punky.mp3"},
+  {id:"h01",title:"Achilles",artist:"Kevin MacLeod",mood:"Hype",genre:"Electronic",duration:"2:10",tags:["hype","energy","action","power"],url:BASE+"Achilles.mp3"},
+  {id:"h02",title:"At Launch",artist:"Kevin MacLeod",mood:"Hype",genre:"Electronic",duration:"1:50",tags:["hype","launch","energy","drive"],url:BASE+"At%20Launch.mp3"},
+  {id:"h03",title:"Bit Shift",artist:"Kevin MacLeod",mood:"Hype",genre:"Electronic",duration:"2:00",tags:["hype","electronic","beat","tech"],url:BASE+"Bit%20Shift.mp3"},
+  {id:"h04",title:"Chipper Doodle v2",artist:"Kevin MacLeod",mood:"Hype",genre:"Electronic",duration:"1:45",tags:["hype","fun","fast","energy"],url:BASE+"Chipper%20Doodle%20v2.mp3"},
+  {id:"h05",title:"Decisions",artist:"Kevin MacLeod",mood:"Hype",genre:"Electronic",duration:"2:15",tags:["hype","intense","cinematic","build"],url:BASE+"Decisions.mp3"},
   // 😌 CHILL
-  {id:"c01",title:"Dreams",artist:"Free Music",mood:"Chill",genre:"Ambient",duration:"3:10",tags:["chill","dream","ambient","relax"],url:"https://www.bensound.com/bensound-music/bensound-dreams.mp3"},
-  {id:"c02",title:"Romantic",artist:"Free Music",mood:"Chill",genre:"Piano",duration:"2:55",tags:["chill","romantic","piano","soft"],url:"https://www.bensound.com/bensound-music/bensound-romantic.mp3"},
-  {id:"c03",title:"Sunny",artist:"Free Music",mood:"Chill",genre:"Acoustic",duration:"2:40",tags:["chill","sunny","acoustic","warm"],url:"https://www.bensound.com/bensound-music/bensound-sunny.mp3"},
-  {id:"c04",title:"A New Beginning",artist:"Free Music",mood:"Chill",genre:"Ambient",duration:"3:20",tags:["chill","new","beginning","ambient"],url:"https://www.bensound.com/bensound-music/bensound-anewbeginning.mp3"},
-  {id:"c05",title:"Once Again",artist:"Free Music",mood:"Chill",genre:"Lofi",duration:"2:50",tags:["chill","lofi","again","relax"],url:"https://www.bensound.com/bensound-music/bensound-onceagain.mp3"},
-  {id:"c06",title:"Relaxing",artist:"Free Music",mood:"Chill",genre:"Ambient",duration:"3:05",tags:["chill","relax","calm","peaceful"],url:"https://www.bensound.com/bensound-music/bensound-relaxing.mp3"},
+  {id:"c01",title:"Achaidh Cheide",artist:"Kevin MacLeod",mood:"Chill",genre:"Celtic",duration:"2:30",tags:["chill","celtic","relax","peaceful"],url:BASE+"Achaidh%20Cheide.mp3"},
+  {id:"c02",title:"Airship Serenity",artist:"Kevin MacLeod",mood:"Chill",genre:"Ambient",duration:"2:45",tags:["chill","ambient","serene","float"],url:BASE+"Airship%20Serenity.mp3"},
+  {id:"c03",title:"Angel Share",artist:"Kevin MacLeod",mood:"Chill",genre:"Ambient",duration:"3:00",tags:["chill","angel","soft","dream"],url:BASE+"Angel%20Share.mp3"},
+  {id:"c04",title:"Bittersweet",artist:"Kevin MacLeod",mood:"Chill",genre:"Piano",duration:"2:50",tags:["chill","piano","bittersweet","calm"],url:BASE+"Bittersweet.mp3"},
+  {id:"c05",title:"Ascending the Vale",artist:"Kevin MacLeod",mood:"Chill",genre:"Ambient",duration:"3:10",tags:["chill","ambient","ascend","calm"],url:BASE+"Ascending%20the%20Vale.mp3"},
   // 😄 HAPPY
-  {id:"hap01",title:"Cute",artist:"Free Music",mood:"Happy",genre:"Pop",duration:"2:00",tags:["happy","cute","fun","upbeat"],url:"https://www.bensound.com/bensound-music/bensound-cute.mp3"},
-  {id:"hap02",title:"Happy Rock",artist:"Free Music",mood:"Happy",genre:"Rock",duration:"1:55",tags:["happy","rock","fun","upbeat"],url:"https://www.bensound.com/bensound-music/bensound-happyrock.mp3"},
-  {id:"hap03",title:"Ukulele",artist:"Free Music",mood:"Happy",genre:"Ukulele",duration:"1:50",tags:["happy","ukulele","fun","summer"],url:"https://www.bensound.com/bensound-music/bensound-ukulele.mp3"},
-  {id:"hap04",title:"Summer",artist:"Free Music",mood:"Happy",genre:"Pop",duration:"2:10",tags:["happy","summer","fun","bright"],url:"https://www.bensound.com/bensound-music/bensound-summer.mp3"},
-  {id:"hap05",title:"Smile",artist:"Free Music",mood:"Happy",genre:"Pop",duration:"1:45",tags:["happy","smile","cheerful","positive"],url:"https://www.bensound.com/bensound-music/bensound-smile.mp3"},
+  {id:"hap01",title:"Adventure Meme",artist:"Kevin MacLeod",mood:"Happy",genre:"Comedy",duration:"1:30",tags:["happy","fun","adventure","upbeat"],url:BASE+"Adventure%20Meme.mp3"},
+  {id:"hap02",title:"Ave Marimba",artist:"Kevin MacLeod",mood:"Happy",genre:"Comedy",duration:"1:45",tags:["happy","marimba","fun","bounce"],url:BASE+"Ave%20Marimba.mp3"},
+  {id:"hap03",title:"Bumbly March",artist:"Kevin MacLeod",mood:"Happy",genre:"Comedy",duration:"1:40",tags:["happy","march","silly","fun"],url:BASE+"Bumbly%20March.mp3"},
+  {id:"hap04",title:"Bet You Can ver 2",artist:"Kevin MacLeod",mood:"Happy",genre:"Upbeat",duration:"1:55",tags:["happy","bet","upbeat","playful"],url:BASE+"Bet%20You%20Can%20ver%202.mp3"},
   // ❤️ ROMANTIC
-  {id:"r01",title:"Love",artist:"Free Music",mood:"Romantic",genre:"Piano",duration:"3:00",tags:["romantic","love","piano","sweet"],url:"https://www.bensound.com/bensound-music/bensound-love.mp3"},
-  {id:"r02",title:"Tender",artist:"Free Music",mood:"Romantic",genre:"Acoustic",duration:"2:50",tags:["romantic","tender","acoustic","gentle"],url:"https://www.bensound.com/bensound-music/bensound-tender.mp3"},
-  {id:"r03",title:"Sweet",artist:"Free Music",mood:"Romantic",genre:"Piano",duration:"2:45",tags:["romantic","sweet","piano","soft"],url:"https://www.bensound.com/bensound-music/bensound-sweet.mp3"},
-  {id:"r04",title:"Piano Moment",artist:"Free Music",mood:"Romantic",genre:"Piano",duration:"3:15",tags:["romantic","piano","moment","beautiful"],url:"https://www.bensound.com/bensound-music/bensound-pianomoment.mp3"},
+  {id:"r01",title:"Alchemists Tower",artist:"Kevin MacLeod",mood:"Romantic",genre:"Cinematic",duration:"3:00",tags:["romantic","tower","cinematic","beautiful"],url:BASE+"Alchemists%20Tower.mp3"},
+  {id:"r02",title:"Amazing Grace 2011",artist:"Kevin MacLeod",mood:"Romantic",genre:"Classical",duration:"2:55",tags:["romantic","grace","classical","gentle"],url:BASE+"Amazing%20Grace%202011.mp3"},
+  {id:"r03",title:"Ashton Manor",artist:"Kevin MacLeod",mood:"Romantic",genre:"Cinematic",duration:"2:40",tags:["romantic","manor","cinematic","tender"],url:BASE+"Ashton%20Manor.mp3"},
   // 🎭 DRAMATIC
-  {id:"d01",title:"Epic",artist:"Free Music",mood:"Dramatic",genre:"Cinematic",duration:"2:30",tags:["dramatic","epic","cinematic","intense"],url:"https://www.bensound.com/bensound-music/bensound-epic.mp3"},
-  {id:"d02",title:"Inspiring",artist:"Free Music",mood:"Dramatic",genre:"Cinematic",duration:"2:25",tags:["dramatic","inspiring","rise","power"],url:"https://www.bensound.com/bensound-music/bensound-inspiring.mp3"},
-  {id:"d03",title:"Evolution",artist:"Free Music",mood:"Dramatic",genre:"Cinematic",duration:"2:40",tags:["dramatic","evolution","cinematic","build"],url:"https://www.bensound.com/bensound-music/bensound-evolution.mp3"},
-  {id:"d04",title:"Sci-Fi",artist:"Free Music",mood:"Dramatic",genre:"Cinematic",duration:"2:15",tags:["dramatic","sci-fi","space","intense"],url:"https://www.bensound.com/bensound-music/bensound-scifi.mp3"},
+  {id:"d01",title:"Amazing Plan - Distressed",artist:"Kevin MacLeod",mood:"Dramatic",genre:"Cinematic",duration:"2:20",tags:["dramatic","plan","intense","cinematic"],url:BASE+"Amazing%20Plan%20-%20Distressed.mp3"},
+  {id:"d02",title:"Attack of the Mole Men",artist:"Kevin MacLeod",mood:"Dramatic",genre:"Cinematic",duration:"2:15",tags:["dramatic","attack","intense","action"],url:BASE+"Attack%20of%20the%20Mole%20Men.mp3"},
+  {id:"d03",title:"Bad Ideas (distressed)",artist:"Kevin MacLeod",mood:"Dramatic",genre:"Cinematic",duration:"2:00",tags:["dramatic","tension","dark","distressed"],url:BASE+"Bad%20Ideas%20%28distressed%29.mp3"},
   // 😂 FUNNY
-  {id:"f01",title:"Funny Song",artist:"Free Music",mood:"Funny",genre:"Comedy",duration:"1:30",tags:["funny","comedy","silly","playful"],url:"https://www.bensound.com/bensound-music/bensound-funnysong.mp3"},
-  {id:"f02",title:"Quirky",artist:"Free Music",mood:"Funny",genre:"Comedy",duration:"1:45",tags:["funny","quirky","silly","fun"],url:"https://www.bensound.com/bensound-music/bensound-quirky.mp3"},
+  {id:"f01",title:"Bama Country",artist:"Kevin MacLeod",mood:"Funny",genre:"Comedy",duration:"1:35",tags:["funny","country","silly","fun"],url:BASE+"Bama%20Country.mp3"},
+  {id:"f02",title:"BTS Prolog",artist:"Kevin MacLeod",mood:"Funny",genre:"Comedy",duration:"1:20",tags:["funny","quirky","silly","playful"],url:BASE+"BTS%20Prolog.mp3"},
+  {id:"f03",title:"Blown Away - No Percussion",artist:"Kevin MacLeod",mood:"Funny",genre:"Comedy",duration:"1:40",tags:["funny","blown","light","quirky"],url:BASE+"Blown%20Away%20-%20No%20Percussion.mp3"},
   // 🎤 HIP HOP
-  {id:"hip01",title:"Hip Jazz",artist:"Free Music",mood:"Hip Hop",genre:"Hip Hop",duration:"2:20",tags:["hip hop","jazz","beat","cool"],url:"https://www.bensound.com/bensound-music/bensound-hipjazz.mp3"},
-  {id:"hip02",title:"Groove Grove",artist:"Free Music",mood:"Hip Hop",genre:"Hip Hop",duration:"2:15",tags:["hip hop","groove","beat","bass"],url:"https://www.bensound.com/bensound-music/bensound-groovegrove.mp3"},
-  // 🎵 POP
-  {id:"p01",title:"Pop Dance",artist:"Free Music",mood:"Pop",genre:"Pop",duration:"2:20",tags:["pop","dance","upbeat","catchy"],url:"https://www.bensound.com/bensound-music/bensound-popdance.mp3"},
-  {id:"p02",title:"Creative Minds",artist:"Free Music",mood:"Pop",genre:"Pop",duration:"2:10",tags:["pop","creative","upbeat","fun"],url:"https://www.bensound.com/bensound-music/bensound-creativeminds.mp3"},
-  {id:"p03",title:"Energy",artist:"Free Music",mood:"Pop",genre:"Pop",duration:"2:05",tags:["pop","energy","upbeat","dance"],url:"https://www.bensound.com/bensound-music/bensound-energy.mp3"},
-  // 🎷 JAZZ
-  {id:"j01",title:"Jazz Comedy",artist:"Free Music",mood:"Jazz",genre:"Jazz",duration:"2:30",tags:["jazz","comedy","fun","classic"],url:"https://www.bensound.com/bensound-music/bensound-jazzcomedy.mp3"},
-  {id:"j02",title:"Jazz Cafe",artist:"Free Music",mood:"Jazz",genre:"Jazz",duration:"3:00",tags:["jazz","cafe","smooth","relax"],url:"https://www.bensound.com/bensound-music/bensound-jazzcafe.mp3"},
-  {id:"j03",title:"Jazzy",artist:"Free Music",mood:"Jazz",genre:"Jazz",duration:"2:45",tags:["jazz","smooth","cool","classic"],url:"https://www.bensound.com/bensound-music/bensound-jazzy.mp3"},
-  // 🎻 CLASSICAL
-  {id:"cl01",title:"Piano Prelude",artist:"Free Music",mood:"Classical",genre:"Classical",duration:"3:20",tags:["classical","piano","elegant","beautiful"],url:"https://www.bensound.com/bensound-music/bensound-pianoprelude.mp3"},
-  {id:"cl02",title:"Classical",artist:"Free Music",mood:"Classical",genre:"Classical",duration:"2:55",tags:["classical","orchestra","elegant","refined"],url:"https://www.bensound.com/bensound-music/bensound-classical.mp3"},
+  {id:"hip01",title:"Aitech",artist:"Kevin MacLeod",mood:"Hip Hop",genre:"Electronic",duration:"2:20",tags:["hip hop","tech","beat","electronic"],url:BASE+"Aitech.mp3"},
   // 🎸 ROCK
-  {id:"rock01",title:"Rock Angel",artist:"Free Music",mood:"Rock",genre:"Rock",duration:"2:20",tags:["rock","guitar","power","energy"],url:"https://www.bensound.com/bensound-music/bensound-rockangel.mp3"},
-  {id:"rock02",title:"Little Idea",artist:"Free Music",mood:"Rock",genre:"Indie Rock",duration:"1:50",tags:["rock","indie","chill","guitar"],url:"https://www.bensound.com/bensound-music/bensound-littleidea.mp3"},
+  {id:"rock01",title:"Achilles",artist:"Kevin MacLeod",mood:"Rock",genre:"Rock",duration:"2:10",tags:["rock","guitar","power","energy"],url:BASE+"Achilles.mp3"},
 ];
 
 
