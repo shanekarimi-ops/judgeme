@@ -3435,19 +3435,32 @@ function togglePreview(trackId, url) {
   const track = CURATED_TRACKS.find(t => t.id === trackId);
   if (!track) return;
 
-  const audio = new Audio(url);
+  // Create and play immediately on user tap (required for iOS)
+  const audio = new Audio();
+  audio.src = url;
   audio.volume = 0.8;
-  audio.play().then(() => {
-    musicPreviewAudio = audio;
-    currentPreviewId = trackId;
-    showNowPlaying(track, trackId);
-    audio.onended = () => {
-      stopMusicPreview();
-      renderMusicTracks(getCuratedTracks(document.getElementById("music-search").value));
-    };
-  }).catch(() => {
-    showToast("Could not play — check your volume is on 🔊");
-  });
+  audio.preload = "auto";
+
+  // Show loading state
+  const btn = document.getElementById("play-btn-" + trackId);
+  if (btn) btn.textContent = "⏳";
+
+  const playPromise = audio.play();
+  if (playPromise !== undefined) {
+    playPromise.then(() => {
+      musicPreviewAudio = audio;
+      currentPreviewId = trackId;
+      showNowPlaying(track, trackId);
+      audio.onended = () => {
+        stopMusicPreview();
+        renderMusicTracks(getCuratedTracks(document.getElementById("music-search").value));
+      };
+    }).catch(err => {
+      console.log("Audio error:", err);
+      if (btn) btn.textContent = "▶";
+      showToast("Tap ▶ again to play 🎵");
+    });
+  }
 }
 
 function showNowPlaying(track, trackId) {
@@ -3471,43 +3484,30 @@ function stopMusicPreview() {
   document.querySelectorAll("[id^='play-btn-']").forEach(b => { if (b.textContent === "⏸") b.textContent = "▶"; });
 }
 
-// ── CURATED TRACK LIBRARY (Kevin MacLeod via Archive.org - CORS enabled) ──
-// All tracks CC BY 3.0 - Kevin MacLeod (incompetech.com)
-const BASE = "https://archive.org/download/Kevin-MacLeod_Royalty-Free_2017_FullAlbum/Kevin%20MacLeod%20-%2000%20-%20";
+// ── CURATED TRACK LIBRARY (Kevin MacLeod - CC BY 3.0 - incompetech.com) ──
 const CURATED_TRACKS = [
   // 🔥 HYPE
-  {id:"h01",title:"Achilles",artist:"Kevin MacLeod",mood:"Hype",genre:"Electronic",duration:"2:10",tags:["hype","energy","action","power"],url:BASE+"Achilles.mp3"},
-  {id:"h02",title:"At Launch",artist:"Kevin MacLeod",mood:"Hype",genre:"Electronic",duration:"1:50",tags:["hype","launch","energy","drive"],url:BASE+"At%20Launch.mp3"},
-  {id:"h03",title:"Bit Shift",artist:"Kevin MacLeod",mood:"Hype",genre:"Electronic",duration:"2:00",tags:["hype","electronic","beat","tech"],url:BASE+"Bit%20Shift.mp3"},
-  {id:"h04",title:"Chipper Doodle v2",artist:"Kevin MacLeod",mood:"Hype",genre:"Electronic",duration:"1:45",tags:["hype","fun","fast","energy"],url:BASE+"Chipper%20Doodle%20v2.mp3"},
-  {id:"h05",title:"Decisions",artist:"Kevin MacLeod",mood:"Hype",genre:"Electronic",duration:"2:15",tags:["hype","intense","cinematic","build"],url:BASE+"Decisions.mp3"},
+  {id:"h01",title:"Accralate",artist:"Kevin MacLeod",mood:"Hype",genre:"Electronic",duration:"3:06",tags:["hype","energy","action","drive"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Accralate.mp3"},
+  {id:"h02",title:"Airport Lounge",artist:"Kevin MacLeod",mood:"Hype",genre:"Jazz",duration:"3:05",tags:["hype","lounge","smooth","upbeat"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Airport%20Lounge.mp3"},
+  {id:"h03",title:"Guts and Bourbon",artist:"Kevin MacLeod",mood:"Hype",genre:"Rock",duration:"2:10",tags:["hype","rock","guitar","energy"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Guts%20and%20Bourbon.mp3"},
+  {id:"h04",title:"Who Likes to Party",artist:"Kevin MacLeod",mood:"Hype",genre:"Electronic",duration:"2:30",tags:["hype","party","fun","dance"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Who%20Likes%20to%20Party.mp3"},
+  {id:"h05",title:"Come Play with Me",artist:"Kevin MacLeod",mood:"Hype",genre:"Upbeat",duration:"2:00",tags:["hype","play","fun","upbeat"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Come%20Play%20with%20Me.mp3"},
   // 😌 CHILL
-  {id:"c01",title:"Achaidh Cheide",artist:"Kevin MacLeod",mood:"Chill",genre:"Celtic",duration:"2:30",tags:["chill","celtic","relax","peaceful"],url:BASE+"Achaidh%20Cheide.mp3"},
-  {id:"c02",title:"Airship Serenity",artist:"Kevin MacLeod",mood:"Chill",genre:"Ambient",duration:"2:45",tags:["chill","ambient","serene","float"],url:BASE+"Airship%20Serenity.mp3"},
-  {id:"c03",title:"Angel Share",artist:"Kevin MacLeod",mood:"Chill",genre:"Ambient",duration:"3:00",tags:["chill","angel","soft","dream"],url:BASE+"Angel%20Share.mp3"},
-  {id:"c04",title:"Bittersweet",artist:"Kevin MacLeod",mood:"Chill",genre:"Piano",duration:"2:50",tags:["chill","piano","bittersweet","calm"],url:BASE+"Bittersweet.mp3"},
-  {id:"c05",title:"Ascending the Vale",artist:"Kevin MacLeod",mood:"Chill",genre:"Ambient",duration:"3:10",tags:["chill","ambient","ascend","calm"],url:BASE+"Ascending%20the%20Vale.mp3"},
+  {id:"c01",title:"Alchemists Tower",artist:"Kevin MacLeod",mood:"Chill",genre:"Ambient",duration:"1:38",tags:["chill","ambient","calm","serene"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Alchemists%20Tower.mp3"},
+  {id:"c02",title:"Atlantean Twilight",artist:"Kevin MacLeod",mood:"Chill",genre:"Ambient",duration:"2:54",tags:["chill","ambient","twilight","dream"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Atlantean%20Twilight.mp3"},
+  {id:"c03",title:"Apprehension",artist:"Kevin MacLeod",mood:"Chill",genre:"Ambient",duration:"1:42",tags:["chill","ambient","soft","float"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Apprehension.mp3"},
+  {id:"c04",title:"Ambler",artist:"Kevin MacLeod",mood:"Chill",genre:"Acoustic",duration:"1:40",tags:["chill","acoustic","walk","relax"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Ambler.mp3"},
+  {id:"c05",title:"Brittle Rille",artist:"Kevin MacLeod",mood:"Chill",genre:"Ambient",duration:"2:20",tags:["chill","ambient","peaceful","space"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Brittle%20Rille.mp3"},
+  {id:"c06",title:"Windswept",artist:"Kevin MacLeod",mood:"Chill",genre:"Ambient",duration:"2:15",tags:["chill","wind","nature","calm"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Windswept.mp3"},
   // 😄 HAPPY
-  {id:"hap01",title:"Adventure Meme",artist:"Kevin MacLeod",mood:"Happy",genre:"Comedy",duration:"1:30",tags:["happy","fun","adventure","upbeat"],url:BASE+"Adventure%20Meme.mp3"},
-  {id:"hap02",title:"Ave Marimba",artist:"Kevin MacLeod",mood:"Happy",genre:"Comedy",duration:"1:45",tags:["happy","marimba","fun","bounce"],url:BASE+"Ave%20Marimba.mp3"},
-  {id:"hap03",title:"Bumbly March",artist:"Kevin MacLeod",mood:"Happy",genre:"Comedy",duration:"1:40",tags:["happy","march","silly","fun"],url:BASE+"Bumbly%20March.mp3"},
-  {id:"hap04",title:"Bet You Can ver 2",artist:"Kevin MacLeod",mood:"Happy",genre:"Upbeat",duration:"1:55",tags:["happy","bet","upbeat","playful"],url:BASE+"Bet%20You%20Can%20ver%202.mp3"},
+  {id:"hap01",title:"Kevin MacLeod: Bicycle",artist:"Kevin MacLeod",mood:"Happy",genre:"Upbeat",duration:"2:30",tags:["happy","bicycle","fun","cheerful"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Kevin%20MacLeod%3A%20Bicycle.mp3"},
+  {id:"hap02",title:"Kevin MacLeod: Arcadia",artist:"Kevin MacLeod",mood:"Happy",genre:"Upbeat",duration:"2:45",tags:["happy","arcadia","bright","fun"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Kevin%20MacLeod%3A%20Arcadia.mp3"},
+  {id:"hap03",title:"Kevin MacLeod - Blue Ska",artist:"Kevin MacLeod",mood:"Happy",genre:"Ska",duration:"2:10",tags:["happy","ska","dance","fun"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Kevin%20MacLeod%20-%20Blue%20Ska.mp3"},
+  {id:"hap04",title:"Kevin MacLeod - Batty McFadden - Slower",artist:"Kevin MacLeod",mood:"Happy",genre:"Comedy",duration:"1:55",tags:["happy","silly","fun","quirky"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Kevin%20MacLeod%20-%20Batty%20McFadden%20-%20Slower.mp3"},
   // ❤️ ROMANTIC
-  {id:"r01",title:"Alchemists Tower",artist:"Kevin MacLeod",mood:"Romantic",genre:"Cinematic",duration:"3:00",tags:["romantic","tower","cinematic","beautiful"],url:BASE+"Alchemists%20Tower.mp3"},
-  {id:"r02",title:"Amazing Grace 2011",artist:"Kevin MacLeod",mood:"Romantic",genre:"Classical",duration:"2:55",tags:["romantic","grace","classical","gentle"],url:BASE+"Amazing%20Grace%202011.mp3"},
-  {id:"r03",title:"Ashton Manor",artist:"Kevin MacLeod",mood:"Romantic",genre:"Cinematic",duration:"2:40",tags:["romantic","manor","cinematic","tender"],url:BASE+"Ashton%20Manor.mp3"},
+  {id:"r01",title:"And Awaken - Stings",artist:"Kevin MacLeod",mood:"Romantic",genre:"Cinematic",duration:"1:10",tags:["romantic","awaken","soft","beautiful"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/And%20Awaken%20-%20Stings.mp3"},
   // 🎭 DRAMATIC
-  {id:"d01",title:"Amazing Plan - Distressed",artist:"Kevin MacLeod",mood:"Dramatic",genre:"Cinematic",duration:"2:20",tags:["dramatic","plan","intense","cinematic"],url:BASE+"Amazing%20Plan%20-%20Distressed.mp3"},
-  {id:"d02",title:"Attack of the Mole Men",artist:"Kevin MacLeod",mood:"Dramatic",genre:"Cinematic",duration:"2:15",tags:["dramatic","attack","intense","action"],url:BASE+"Attack%20of%20the%20Mole%20Men.mp3"},
-  {id:"d03",title:"Bad Ideas (distressed)",artist:"Kevin MacLeod",mood:"Dramatic",genre:"Cinematic",duration:"2:00",tags:["dramatic","tension","dark","distressed"],url:BASE+"Bad%20Ideas%20%28distressed%29.mp3"},
-  // 😂 FUNNY
-  {id:"f01",title:"Bama Country",artist:"Kevin MacLeod",mood:"Funny",genre:"Comedy",duration:"1:35",tags:["funny","country","silly","fun"],url:BASE+"Bama%20Country.mp3"},
-  {id:"f02",title:"BTS Prolog",artist:"Kevin MacLeod",mood:"Funny",genre:"Comedy",duration:"1:20",tags:["funny","quirky","silly","playful"],url:BASE+"BTS%20Prolog.mp3"},
-  {id:"f03",title:"Blown Away - No Percussion",artist:"Kevin MacLeod",mood:"Funny",genre:"Comedy",duration:"1:40",tags:["funny","blown","light","quirky"],url:BASE+"Blown%20Away%20-%20No%20Percussion.mp3"},
-  // 🎤 HIP HOP
-  {id:"hip01",title:"Aitech",artist:"Kevin MacLeod",mood:"Hip Hop",genre:"Electronic",duration:"2:20",tags:["hip hop","tech","beat","electronic"],url:BASE+"Aitech.mp3"},
-  // 🎸 ROCK
-  {id:"rock01",title:"Achilles",artist:"Kevin MacLeod",mood:"Rock",genre:"Rock",duration:"2:10",tags:["rock","guitar","power","energy"],url:BASE+"Achilles.mp3"},
+  {id:"d01",title:"Anxiety - Madness Paranoia",artist:"Kevin MacLeod",mood:"Dramatic",genre:"Cinematic",duration:"2:30",tags:["dramatic","tension","intense","cinematic"],url:"https://archive.org/download/kevin-mac-leod-radio-martini/Anxiety%20-%20Madness%20Paranoia%20%7C%20YouTube%20Audio%20Library.mp3"},
 ];
 
 
