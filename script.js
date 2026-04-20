@@ -400,13 +400,7 @@ async function loadFeed() {
   // Track view + play music for first post
   if (posts.length > 0) {
     trackPostView(posts[0].id);
-    const firstPost = posts[0];
-    if (firstPost.music) {
-      try {
-        const music = typeof firstPost.music === "string" ? JSON.parse(firstPost.music) : firstPost.music;
-        if (music && music.url) playFeedMusic(firstPost.id, music.url);
-      } catch(e) {}
-    }
+
   }
 }
 
@@ -430,16 +424,7 @@ function setupTikTokScroll(container) {
         const pid = visiblePost.id.replace("feed-item-", "");
         trackPostView(pid);
         loadJuryPreview(pid);
-        // Play music if post has it, otherwise stop any playing music
-        const post = postsCache[pid];
-        if (post && post.music) {
-          try {
-            const music = typeof post.music === "string" ? JSON.parse(post.music) : post.music;
-            if (music && music.url) playFeedMusic(pid, music.url);
-          } catch(e) { stopFeedMusic(); }
-        } else {
-          stopFeedMusic();
-        }
+
       }
     }
   }, { passive: true });
@@ -525,7 +510,7 @@ function renderTikTokPost(p) {
         <span style="font-size:15px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.6)">@${esc(p.username)}</span>${getBadgeHtml(p.badge_tier)}
       </div>
       ${p.caption ? `<div class="tiktok-caption">${esc(p.caption)}</div>` : ""}
-      ${p.music ? `<div class="feed-music-bar" onclick="tapToPlayMusic('${p.id}')" style="display:flex;align-items:center;gap:5px;margin-top:4px;background:rgba(0,0,0,0.4);padding:4px 10px;border-radius:20px;width:fit-content;max-width:100%;overflow:hidden;cursor:pointer"><span style="font-size:13px;flex-shrink:0">🎵</span><span style="font-size:12px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(JSON.parse(p.music).title)} — ${esc(JSON.parse(p.music).artist)}</span></div>` : ""}
+      ${p.music ? `<div style="display:flex;align-items:center;gap:5px;margin-top:4px;background:rgba(0,0,0,0.4);padding:4px 10px;border-radius:20px;width:fit-content;max-width:100%;overflow:hidden"><span style="font-size:13px;flex-shrink:0">🎵</span><span style="font-size:12px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(JSON.parse(p.music).title)} — ${esc(JSON.parse(p.music).artist)}</span></div>` : ""}
       <div style="display:flex;gap:8px;margin-top:6px">
         <span style="font-size:12px;color:rgba(255,255,255,0.7)">🔥 ${p.fire_votes}</span>
         <span style="font-size:12px;color:rgba(255,255,255,0.7)">🧊 ${p.ice_votes}</span>
@@ -3527,70 +3512,6 @@ const CURATED_TRACKS = [
 
 
 
-function tapToPlayMusic(postId) {
-  const post = postsCache[postId];
-  if (!post || !post.music) return;
-  try {
-    const music = typeof post.music === "string" ? JSON.parse(post.music) : post.music;
-    if (!music || !music.url) return;
-    // Stop if already playing this post
-    if (feedMusicPostId === postId && feedMusicAudio && !feedMusicAudio.paused) {
-      stopFeedMusic();
-      return;
-    }
-    stopFeedMusic();
-    let url = music.url;
-    if (url.startsWith("Music/")) url = "https://shanekarimi-ops.github.io/judgeme/" + url;
-    feedMusicAudio = new Audio(url);
-    feedMusicAudio.loop = true;
-    feedMusicAudio.volume = 0.8;
-    feedMusicAudio.play().then(() => {
-      feedMusicPostId = postId;
-      // Update bar to show playing
-      const bar = document.querySelector(`#feed-item-${postId} .feed-music-bar`);
-      if (bar) bar.style.background = "rgba(255,107,53,0.5)";
-    }).catch(() => showToast("Could not play music"));
-  } catch(e) {}
-}
-
-// ── FEED MUSIC PLAYER ────────────────────────────────────────────
-let feedMusicAudio = null;
-let feedMusicPostId = null;
-
-function playFeedMusic(postId, url) {
-  if (feedMusicPostId === postId) return;
-  stopFeedMusic();
-  let resolvedUrl = url;
-  if (url && url.startsWith("Music/")) {
-    resolvedUrl = "https://shanekarimi-ops.github.io/judgeme/" + url;
-  }
-  feedMusicAudio = new Audio(resolvedUrl);
-  feedMusicAudio.loop = true;
-  feedMusicAudio.volume = 0.8;
-  const playPromise = feedMusicAudio.play();
-  if (playPromise) {
-    playPromise.catch(() => {
-      // Autoplay blocked - show tap-to-play indicator on the post
-      const musicEl = document.querySelector(`#feed-item-${postId} .feed-music-bar`);
-      if (musicEl) {
-        musicEl.style.cursor = "pointer";
-        musicEl.style.background = "rgba(255,107,53,0.4)";
-        musicEl.title = "Tap to play music";
-        musicEl.onclick = () => { feedMusicAudio && feedMusicAudio.play().catch(()=>{}); musicEl.style.background = "rgba(0,0,0,0.4)"; musicEl.onclick = null; };
-      }
-    });
-  }
-  feedMusicPostId = postId;
-}
-
-function stopFeedMusic() {
-  if (feedMusicAudio) {
-    feedMusicAudio.pause();
-    feedMusicAudio.src = "";
-    feedMusicAudio = null;
-  }
-  feedMusicPostId = null;
-}
 
 // ── VIEW TRACKING ─────────────────────────────────────────────────
 const viewedPosts = new Set();
