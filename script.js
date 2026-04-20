@@ -401,6 +401,11 @@ async function loadFeed() {
   if (posts.length > 0) trackPostView(posts[0].id);
 }
 
+// Track if user has tapped/interacted — iOS requires this for auto-unmute
+let userHasInteracted = false;
+document.addEventListener("touchstart", () => { userHasInteracted = true; }, { once: false, passive: true });
+document.addEventListener("click", () => { userHasInteracted = true; }, { once: false, passive: true });
+
 function setupTikTokScroll(container) {
   let lastIdx = 0;
   container.addEventListener("scroll", () => {
@@ -415,21 +420,36 @@ function setupTikTokScroll(container) {
           else { vid.pause(); vid.currentTime = 0; }
         }
       });
-      // Track view + load jury count + play music for newly visible post
+      // Track view + load jury count + play sound for newly visible post
       const visiblePost = posts[idx];
       if (visiblePost) {
         const pid = visiblePost.id.replace("feed-item-", "");
         trackPostView(pid);
         loadJuryPreview(pid);
-        // Auto-play music if post has it
+
         const post = postsCache[pid];
+
+        // Stop previous music
+        stopFeedMusic();
+
+        // Auto-play music if post has it
         if (post && post.music) {
           try {
             const music = typeof post.music === "string" ? JSON.parse(post.music) : post.music;
             if (music && music.url) playFeedMusic(pid, music.url);
           } catch(e) {}
-        } else {
-          stopFeedMusic();
+        }
+
+        // Auto-unmute video if user has interacted with page
+        const vid = visiblePost.querySelector("video#vid-" + pid);
+        if (vid && userHasInteracted) {
+          // Mute all other videos first
+          document.querySelectorAll(".tiktok-post video").forEach(v => {
+            if (v !== vid) { v.muted = true; const ob = document.getElementById("mute-btn-" + v.id.replace("vid-","")); if(ob) ob.textContent = "🔇"; }
+          });
+          vid.muted = false;
+          const muteBtn = document.getElementById("mute-btn-" + pid);
+          if (muteBtn) muteBtn.textContent = "🔊";
         }
       }
     }
@@ -3485,7 +3505,7 @@ function stopMusicPreview() {
 }
 
 // ── CURATED TRACK LIBRARY (Pixabay - no attribution required) ────
-const BASE = (window.location.origin + "/" + (window.location.pathname.split("/")[1] || "") + "/Music/").replace("//Music/", "/Music/");
+const BASE = "https://shanekarimi-ops.github.io/judgeme/Music/";
 const CURATED_TRACKS = [
   {id:"t01",title:"Organic Flow",artist:"Aberrant Realities",mood:"Chill",genre:"Ambient",duration:"",tags:["chill","organic","flow","ambient"],url:BASE+"aberrantrealities-organic-flow-1015-remastered-485950.mp3"},
   {id:"t02",title:"Blues Ballad",artist:"Alec Koff",mood:"Chill",genre:"Blues",duration:"",tags:["chill","blues","ballad","relax"],url:BASE+"alec_koff-blues-ballad-487408.mp3"},
@@ -3525,14 +3545,14 @@ let feedMusicPostId = null;
 function playFeedMusic(postId, url) {
   if (feedMusicPostId === postId) return;
   stopFeedMusic();
-  // Resolve relative URLs to absolute so they work from any page context
+  // Always resolve to absolute GitHub Pages URL
   let resolvedUrl = url;
-  if (url && !url.startsWith("http")) {
-    resolvedUrl = window.location.origin + "/" + window.location.pathname.split("/")[1] + "/" + url;
+  if (url && url.startsWith("Music/")) {
+    resolvedUrl = "https://shanekarimi-ops.github.io/judgeme/" + url;
   }
   feedMusicAudio = new Audio(resolvedUrl);
   feedMusicAudio.loop = true;
-  feedMusicAudio.volume = 0.5;
+  feedMusicAudio.volume = 0.6;
   feedMusicAudio.play().catch(() => {});
   feedMusicPostId = postId;
 }
