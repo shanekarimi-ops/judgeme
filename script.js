@@ -1269,7 +1269,9 @@ async function submitPost() {
       return;
     }
   }
-  const { error } = await sb.from("posts").insert({ id: uid(), user_id: currentUser.id, username: currentUser.username, avatar_url: currentUser.avatar_url || null, category: uploadCat, caption: caption || null, image_url: imageUrl, is_nsfw: uploadCat === "NSFW" || isSensitive, fire_votes: 0, ice_votes: 0, total_ratings: 0, rating_sum: 0, view_count: 0, text_overlay: textOverlay ? JSON.stringify(textOverlay) : null, music: selectedMusic ? JSON.stringify({title: selectedMusic.title, artist: selectedMusic.artist, url: selectedMusic.url}) : null });
+  const musicData = selectedMusic ? JSON.stringify({title: selectedMusic.title, artist: selectedMusic.artist, url: selectedMusic.url}) : null;
+  console.log("submitPost - selectedMusic:", selectedMusic, "musicData:", musicData);
+  const { error } = await sb.from("posts").insert({ id: uid(), user_id: currentUser.id, username: currentUser.username, avatar_url: currentUser.avatar_url || null, category: uploadCat, caption: caption || null, image_url: imageUrl, is_nsfw: uploadCat === "NSFW" || isSensitive, fire_votes: 0, ice_votes: 0, total_ratings: 0, rating_sum: 0, view_count: 0, text_overlay: textOverlay ? JSON.stringify(textOverlay) : null, music: musicData });
   if (error) { status.textContent = "Error posting. Try again!"; return; }
   status.textContent = "";
   document.getElementById("post-caption").value = "";
