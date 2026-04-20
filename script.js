@@ -3485,7 +3485,7 @@ function stopMusicPreview() {
 }
 
 // ── CURATED TRACK LIBRARY (Pixabay - no attribution required) ────
-const BASE = "Music/";
+const BASE = (window.location.origin + "/" + (window.location.pathname.split("/")[1] || "") + "/Music/").replace("//Music/", "/Music/");
 const CURATED_TRACKS = [
   {id:"t01",title:"Organic Flow",artist:"Aberrant Realities",mood:"Chill",genre:"Ambient",duration:"",tags:["chill","organic","flow","ambient"],url:BASE+"aberrantrealities-organic-flow-1015-remastered-485950.mp3"},
   {id:"t02",title:"Blues Ballad",artist:"Alec Koff",mood:"Chill",genre:"Blues",duration:"",tags:["chill","blues","ballad","relax"],url:BASE+"alec_koff-blues-ballad-487408.mp3"},
@@ -3523,9 +3523,14 @@ let feedMusicAudio = null;
 let feedMusicPostId = null;
 
 function playFeedMusic(postId, url) {
-  if (feedMusicPostId === postId) return; // already playing for this post
+  if (feedMusicPostId === postId) return;
   stopFeedMusic();
-  feedMusicAudio = new Audio(url);
+  // Resolve relative URLs to absolute so they work from any page context
+  let resolvedUrl = url;
+  if (url && !url.startsWith("http")) {
+    resolvedUrl = window.location.origin + "/" + window.location.pathname.split("/")[1] + "/" + url;
+  }
+  feedMusicAudio = new Audio(resolvedUrl);
   feedMusicAudio.loop = true;
   feedMusicAudio.volume = 0.5;
   feedMusicAudio.play().catch(() => {});
