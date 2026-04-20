@@ -322,6 +322,9 @@ async function loadFeed() {
   container.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px">Loading...</div>';
   // Clear post cache so badge updates are always fresh
   Object.keys(postsCache).forEach(k => delete postsCache[k]);
+  feedPage = 0;
+  feedAllPosts = [];
+  feedLoading = false;
 
   let query = sb.from("posts").select("*").order("created_at", { ascending: false });
   const isAdult = currentUser && currentUser.is_adult;
@@ -384,23 +387,63 @@ async function loadFeed() {
   const postIds = posts.map(p => p.id);
   checkUserVotes(postIds);
 
-  container.innerHTML = posts.map((p) => renderTikTokPost(p)).join("");
-  posts.forEach(p => { postsCache[p.id] = p; });
+  // Store all posts, render first 10
+  feedAllPosts = posts;
+  container.innerHTML = "";
+  renderFeedPage(container);
 
-  // Auto-play first video
   const firstVid = container.querySelector("video");
   if (firstVid) firstVid.play().catch(() => {});
 
-  // Pause/play videos on scroll
   setupTikTokScroll(container);
+  if (feedAllPosts.length > 0) trackPostView(feedAllPosts[0].id);
+}
 
-  // Load jury comment counts for all posts
-  posts.forEach(p => loadJuryPreview(p.id));
+// ── PAGINATION ────────────────────────────────────────────────────
+let feedPage = 0;
+const FEED_PAGE_SIZE = 10;
+let feedAllPosts = [];
+let feedLoading = false;
 
-  // Track view + play music for first post
-  if (posts.length > 0) {
-    trackPostView(posts[0].id);
+function renderFeedPage(container) {
+  const start = feedPage * FEED_PAGE_SIZE;
+  const pagePosts = feedAllPosts.slice(start, start + FEED_PAGE_SIZE);
+  if (!pagePosts.length) return;
 
+  checkUserVotes(pagePosts.map(p => p.id));
+  pagePosts.forEach(p => { postsCache[p.id] = p; });
+
+  // Remove old sentinel
+  const old = document.getElementById("feed-load-more");
+  if (old) old.remove();
+
+  // Append posts
+  pagePosts.forEach(p => {
+    const div = document.createElement("div");
+    div.innerHTML = renderTikTokPost(p);
+    container.appendChild(div.firstElementChild);
+    loadJuryPreview(p.id);
+  });
+
+  feedPage++;
+
+  // Add sentinel if more posts remain
+  if (feedPage * FEED_PAGE_SIZE < feedAllPosts.length) {
+    const sentinel = document.createElement("div");
+    sentinel.id = "feed-load-more";
+    sentinel.style.cssText = "height:100vh;display:flex;align-items:center;justify-content:center;scroll-snap-align:start;flex-shrink:0;background:#0a0a0a";
+    sentinel.innerHTML = '<div style="color:#555;font-size:14px;text-align:center"><div style="font-size:32px;margin-bottom:8px">⬇️</div>Scroll for more</div>';
+    container.appendChild(sentinel);
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !feedLoading) {
+        feedLoading = true;
+        sentinel.remove();
+        renderFeedPage(container);
+        feedLoading = false;
+      }
+    }, { threshold: 0.3 });
+    observer.observe(sentinel);
   }
 }
 
@@ -1182,6 +1225,33 @@ function previewPost(input) {
   document.getElementById("overlay-preview-indicator").style.display = "none";
 }
 
+
+// ── IMAGE COMPRESSION ─────────────────────────────────────────────
+async function compressImage(file, maxWidth=1080, quality=0.82) {
+  // Skip videos and already-small files (<300KB)
+  if (file.type.startsWith("video") || file.size < 300 * 1024) return file;
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
+      let w = img.naturalWidth;
+      let h = img.naturalHeight;
+      if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      canvas.toBlob((blob) => {
+        if (!blob || blob.size >= file.size) { resolve(file); return; }
+        resolve(new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" }));
+      }, "image/jpeg", quality);
+    };
+    img.onerror = () => resolve(file);
+    img.src = url;
+  });
+}
+
 async function submitPost() {
   if (!currentUser) { showToast("Set up your profile first!"); return; }
   const caption = document.getElementById("post-caption").value.trim();
@@ -1231,10 +1301,11 @@ async function submitPost() {
     document.getElementById("slideshow-controls").style.display = "none";
     document.getElementById("slideshow-file").value = "";
   } else if (fileInput.files[0]) {
-    const file = fileInput.files[0];
-    const ext = file.name.split(".").pop().toLowerCase();
+    status.textContent = "Optimizing...";
+    const compressed = await compressImage(fileInput.files[0]);
+    const ext = compressed.name.split(".").pop().toLowerCase();
     const fname = uid() + "." + ext;
-    const { error: uploadError } = await sb.storage.from("judge-me-uploads").upload(fname, file, { upsert: true, contentType: file.type });
+    const { error: uploadError } = await sb.storage.from("judge-me-uploads").upload(fname, compressed, { upsert: true, contentType: compressed.type });
     if (!uploadError) {
       const { data: ud } = sb.storage.from("judge-me-uploads").getPublicUrl(fname);
       imageUrl = ud.publicUrl;
