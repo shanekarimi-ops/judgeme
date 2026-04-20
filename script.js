@@ -440,16 +440,19 @@ function setupTikTokScroll(container) {
           } catch(e) {}
         }
 
-        // Auto-unmute video if user has interacted with page
-        const vid = visiblePost.querySelector("video#vid-" + pid);
-        if (vid && userHasInteracted) {
-          // Mute all other videos first
-          document.querySelectorAll(".tiktok-post video").forEach(v => {
-            if (v !== vid) { v.muted = true; const ob = document.getElementById("mute-btn-" + v.id.replace("vid-","")); if(ob) ob.textContent = "🔇"; }
-          });
-          vid.muted = false;
-          const muteBtn = document.getElementById("mute-btn-" + pid);
-          if (muteBtn) muteBtn.textContent = "🔊";
+        // Auto-unmute video when user has interacted (tapped screen)
+        if (userHasInteracted && !post?.music) {
+          const vid = document.getElementById("vid-" + pid);
+          if (vid) {
+            document.querySelectorAll(".tiktok-post video").forEach(v => {
+              v.muted = true;
+              const ob = document.getElementById("mute-btn-" + v.id.replace("vid-",""));
+              if (ob) ob.textContent = "🔇";
+            });
+            vid.muted = false;
+            const muteBtn = document.getElementById("mute-btn-" + pid);
+            if (muteBtn) muteBtn.textContent = "🔊";
+          }
         }
       }
     }
@@ -1269,9 +1272,7 @@ async function submitPost() {
       return;
     }
   }
-  const musicData = selectedMusic ? JSON.stringify({title: selectedMusic.title, artist: selectedMusic.artist, url: selectedMusic.url}) : null;
-  console.log("submitPost - selectedMusic:", selectedMusic, "musicData:", musicData);
-  const { error } = await sb.from("posts").insert({ id: uid(), user_id: currentUser.id, username: currentUser.username, avatar_url: currentUser.avatar_url || null, category: uploadCat, caption: caption || null, image_url: imageUrl, is_nsfw: uploadCat === "NSFW" || isSensitive, fire_votes: 0, ice_votes: 0, total_ratings: 0, rating_sum: 0, view_count: 0, text_overlay: textOverlay ? JSON.stringify(textOverlay) : null, music: musicData });
+  const { error } = await sb.from("posts").insert({ id: uid(), user_id: currentUser.id, username: currentUser.username, avatar_url: currentUser.avatar_url || null, category: uploadCat, caption: caption || null, image_url: imageUrl, is_nsfw: uploadCat === "NSFW" || isSensitive, fire_votes: 0, ice_votes: 0, total_ratings: 0, rating_sum: 0, view_count: 0, text_overlay: textOverlay ? JSON.stringify(textOverlay) : null, music: selectedMusic ? JSON.stringify({title: selectedMusic.title, artist: selectedMusic.artist, url: selectedMusic.url}) : null });
   if (error) { status.textContent = "Error posting. Try again!"; return; }
   status.textContent = "";
   document.getElementById("post-caption").value = "";
@@ -3507,35 +3508,34 @@ function stopMusicPreview() {
 }
 
 // ── CURATED TRACK LIBRARY (Pixabay - no attribution required) ────
-const BASE = "https://shanekarimi-ops.github.io/judgeme/Music/";
 const CURATED_TRACKS = [
-  {id:"t01",title:"Organic Flow",artist:"Aberrant Realities",mood:"Chill",genre:"Ambient",duration:"",tags:["chill","organic","flow","ambient"],url:BASE+"aberrantrealities-organic-flow-1015-remastered-485950.mp3"},
-  {id:"t02",title:"Blues Ballad",artist:"Alec Koff",mood:"Chill",genre:"Blues",duration:"",tags:["chill","blues","ballad","relax"],url:BASE+"alec_koff-blues-ballad-487408.mp3"},
-  {id:"t03",title:"Running Night",artist:"Alex MakeMusic",mood:"Hype",genre:"Electronic",duration:"",tags:["hype","running","night","energy"],url:BASE+"alex_makemusic-running-night-393139.mp3"},
-  {id:"t04",title:"Energetic Action Sport",artist:"Alex Grohl",mood:"Hype",genre:"Rock",duration:"",tags:["hype","action","sport","energy"],url:BASE+"alexgrohl-energetic-action-sport-500409.mp3"},
-  {id:"t05",title:"Dance Playful Night",artist:"Alex Zavesa",mood:"Happy",genre:"Dance",duration:"",tags:["happy","dance","playful","night"],url:BASE+"alexzavesa-dance-playful-night-510786.mp3"},
-  {id:"t06",title:"Powerful Dramatic Trailer",artist:"ArtMyLife",mood:"Dramatic",genre:"Cinematic",duration:"",tags:["dramatic","powerful","trailer","cinematic"],url:BASE+"artmylife-powerful-dramatic-trailer-514242.mp3"},
-  {id:"t07",title:"Total War Epic Action",artist:"AudioAtlant",mood:"Dramatic",genre:"Cinematic",duration:"",tags:["dramatic","war","epic","action"],url:BASE+"audioatlant-total-war-epic-action-cinematic-trailer-main-513668.mp3"},
-  {id:"t08",title:"Alone",artist:"Bodleasons",mood:"Romantic",genre:"Ambient",duration:"",tags:["romantic","alone","emotional","soft"],url:BASE+"bodleasons-alone-296348.mp3"},
-  {id:"t09",title:"Sandbreaker",artist:"Denys Brodovskyi",mood:"Hype",genre:"Electronic",duration:"",tags:["hype","sand","breaker","energy"],url:BASE+"denys_brodovskyi-sandbreaker-379630.mp3"},
-  {id:"t10",title:"Tell Me What",artist:"Denys Brodovskyi",mood:"Chill",genre:"Electronic",duration:"",tags:["chill","mellow","electronic","vibe"],url:BASE+"denys_brodovskyi-tell-me-what-379638.mp3"},
-  {id:"t11",title:"Magical Wizard School",artist:"DomArt Studios",mood:"Happy",genre:"Orchestral",duration:"",tags:["happy","magical","wizard","orchestral"],url:BASE+"domartistudios-magical-wizard-school-orchestral-fantasy-488126.mp3"},
-  {id:"t12",title:"Powerful Percussion",artist:"Energy Sound",mood:"Hype",genre:"Percussion",duration:"",tags:["hype","powerful","percussion","drums"],url:BASE+"energysound-powerful-percussion-513717.mp3"},
-  {id:"t13",title:"Stomp Action Music",artist:"Energy Sound",mood:"Hype",genre:"Electronic",duration:"",tags:["hype","stomp","action","intense"],url:BASE+"energysound-stomp-action-music-513718.mp3"},
-  {id:"t14",title:"Stomp Drum Percussion",artist:"Energy Sound",mood:"Hype",genre:"Percussion",duration:"",tags:["hype","stomp","drum","percussion"],url:BASE+"energysound-stomp-drum-percussion-513744.mp3"},
-  {id:"t15",title:"Charming Phonk",artist:"Free Music Lab",mood:"Hip Hop",genre:"Phonk",duration:"",tags:["hip hop","phonk","charming","vibe"],url:BASE+"freemusiclab-charming-phonk-i-free-background-music-i-free-music-lab-release-513626.mp3"},
-  {id:"t16",title:"Cinematic Inspiring",artist:"Glebator",mood:"Dramatic",genre:"Cinematic",duration:"",tags:["dramatic","cinematic","inspiring","rise"],url:BASE+"glebator-cinematic-inspiring-513472.mp3"},
-  {id:"t17",title:"Spinning Head",artist:"Gvidon",mood:"Funny",genre:"Comedy",duration:"",tags:["funny","spinning","quirky","comedy"],url:BASE+"gvidon-spinning-head-271171.mp3"},
-  {id:"t18",title:"Upbeat Happy Corporate",artist:"Kornev Music",mood:"Happy",genre:"Corporate",duration:"",tags:["happy","upbeat","corporate","positive"],url:BASE+"kornevmusic-upbeat-happy-corporate-487426.mp3"},
-  {id:"t19",title:"Joyful Rhythm Walk Funk",artist:"Light Beats Music",mood:"Happy",genre:"Funk",duration:"",tags:["happy","joyful","funk","walk"],url:BASE+"lightbeatsmusic-joyful-rhythm-walk-funk-513936.mp3"},
-  {id:"t20",title:"Strong Character Fuzz Rock",artist:"Light Stock Music",mood:"Rock",genre:"Rock",duration:"",tags:["rock","strong","fuzz","sport"],url:BASE+"lightstockmusic-strong-character-powerful-fuzz-action-sport-rock-513742.mp3"},
-  {id:"t21",title:"Action Man Sport",artist:"Magpie Music",mood:"Hype",genre:"Rock",duration:"",tags:["hype","action","sport","rock"],url:BASE+"magpiemusic-action-man-the-action-sport-513684.mp3"},
-  {id:"t22",title:"Action Trailer Rock",artist:"Magpie Music",mood:"Dramatic",genre:"Rock",duration:"",tags:["dramatic","action","trailer","rock"],url:BASE+"magpiemusic-action-trailer-promo-rock-513687.mp3"},
-  {id:"t23",title:"Music Promotion",artist:"Miromax Music",mood:"Happy",genre:"Pop",duration:"",tags:["happy","promotion","pop","upbeat"],url:BASE+"miromaxmusic-music-promotion-no-copyright-513944.mp3"},
-  {id:"t24",title:"Future Design",artist:"Penguin Music",mood:"Chill",genre:"Electronic",duration:"",tags:["chill","future","design","electronic"],url:BASE+"penguinmusic-future-design-344320.mp3"},
-  {id:"t25",title:"Vlog Hip Hop",artist:"Produces Platinum",mood:"Hip Hop",genre:"Hip Hop",duration:"",tags:["hip hop","vlog","chill","beats"],url:BASE+"producesplatinum-vlog-hip-hop-483574.mp3"},
-  {id:"t26",title:"Last Point Beat Electronic",artist:"Raspberry Music",mood:"Chill",genre:"Electronic",duration:"",tags:["chill","beat","electronic","digital"],url:BASE+"raspberrymusic-the-last-point-beat-electronic-digital-394291.mp3"},
-  {id:"t27",title:"Comedy Cartoon Funny",artist:"Starostin",mood:"Funny",genre:"Comedy",duration:"",tags:["funny","comedy","cartoon","silly"],url:BASE+"starostin-comedy-cartoon-funny-background-music-492540.mp3"},
+  {id:"t01",title:"Organic Flow",artist:"Aberrant Realities",mood:"Chill",genre:"Ambient",duration:"",tags:["chill","organic","flow","ambient"],url:"https://shanekarimi-ops.github.io/judgeme/Music/aberrantrealities-organic-flow-1015-remastered-485950.mp3"},
+  {id:"t02",title:"Blues Ballad",artist:"Alec Koff",mood:"Chill",genre:"Blues",duration:"",tags:["chill","blues","ballad","relax"],url:"https://shanekarimi-ops.github.io/judgeme/Music/alec_koff-blues-ballad-487408.mp3"},
+  {id:"t03",title:"Running Night",artist:"Alex MakeMusic",mood:"Hype",genre:"Electronic",duration:"",tags:["hype","running","night","energy"],url:"https://shanekarimi-ops.github.io/judgeme/Music/alex_makemusic-running-night-393139.mp3"},
+  {id:"t04",title:"Energetic Action Sport",artist:"Alex Grohl",mood:"Hype",genre:"Rock",duration:"",tags:["hype","action","sport","energy"],url:"https://shanekarimi-ops.github.io/judgeme/Music/alexgrohl-energetic-action-sport-500409.mp3"},
+  {id:"t05",title:"Dance Playful Night",artist:"Alex Zavesa",mood:"Happy",genre:"Dance",duration:"",tags:["happy","dance","playful","night"],url:"https://shanekarimi-ops.github.io/judgeme/Music/alexzavesa-dance-playful-night-510786.mp3"},
+  {id:"t06",title:"Powerful Dramatic Trailer",artist:"ArtMyLife",mood:"Dramatic",genre:"Cinematic",duration:"",tags:["dramatic","powerful","trailer","cinematic"],url:"https://shanekarimi-ops.github.io/judgeme/Music/artmylife-powerful-dramatic-trailer-514242.mp3"},
+  {id:"t07",title:"Total War Epic Action",artist:"AudioAtlant",mood:"Dramatic",genre:"Cinematic",duration:"",tags:["dramatic","war","epic","action"],url:"https://shanekarimi-ops.github.io/judgeme/Music/audioatlant-total-war-epic-action-cinematic-trailer-main-513668.mp3"},
+  {id:"t08",title:"Alone",artist:"Bodleasons",mood:"Romantic",genre:"Ambient",duration:"",tags:["romantic","alone","emotional","soft"],url:"https://shanekarimi-ops.github.io/judgeme/Music/bodleasons-alone-296348.mp3"},
+  {id:"t09",title:"Sandbreaker",artist:"Denys Brodovskyi",mood:"Hype",genre:"Electronic",duration:"",tags:["hype","sand","breaker","energy"],url:"https://shanekarimi-ops.github.io/judgeme/Music/denys_brodovskyi-sandbreaker-379630.mp3"},
+  {id:"t10",title:"Tell Me What",artist:"Denys Brodovskyi",mood:"Chill",genre:"Electronic",duration:"",tags:["chill","mellow","electronic","vibe"],url:"https://shanekarimi-ops.github.io/judgeme/Music/denys_brodovskyi-tell-me-what-379638.mp3"},
+  {id:"t11",title:"Magical Wizard School",artist:"DomArt Studios",mood:"Happy",genre:"Orchestral",duration:"",tags:["happy","magical","wizard","orchestral"],url:"https://shanekarimi-ops.github.io/judgeme/Music/domartistudios-magical-wizard-school-orchestral-fantasy-488126.mp3"},
+  {id:"t12",title:"Powerful Percussion",artist:"Energy Sound",mood:"Hype",genre:"Percussion",duration:"",tags:["hype","powerful","percussion","drums"],url:"https://shanekarimi-ops.github.io/judgeme/Music/energysound-powerful-percussion-513717.mp3"},
+  {id:"t13",title:"Stomp Action Music",artist:"Energy Sound",mood:"Hype",genre:"Electronic",duration:"",tags:["hype","stomp","action","intense"],url:"https://shanekarimi-ops.github.io/judgeme/Music/energysound-stomp-action-music-513718.mp3"},
+  {id:"t14",title:"Stomp Drum Percussion",artist:"Energy Sound",mood:"Hype",genre:"Percussion",duration:"",tags:["hype","stomp","drum","percussion"],url:"https://shanekarimi-ops.github.io/judgeme/Music/energysound-stomp-drum-percussion-513744.mp3"},
+  {id:"t15",title:"Charming Phonk",artist:"Free Music Lab",mood:"Hip Hop",genre:"Phonk",duration:"",tags:["hip hop","phonk","charming","vibe"],url:"https://shanekarimi-ops.github.io/judgeme/Music/freemusiclab-charming-phonk-i-free-background-music-i-free-music-lab-release-513626.mp3"},
+  {id:"t16",title:"Cinematic Inspiring",artist:"Glebator",mood:"Dramatic",genre:"Cinematic",duration:"",tags:["dramatic","cinematic","inspiring","rise"],url:"https://shanekarimi-ops.github.io/judgeme/Music/glebator-cinematic-inspiring-513472.mp3"},
+  {id:"t17",title:"Spinning Head",artist:"Gvidon",mood:"Funny",genre:"Comedy",duration:"",tags:["funny","spinning","quirky","comedy"],url:"https://shanekarimi-ops.github.io/judgeme/Music/gvidon-spinning-head-271171.mp3"},
+  {id:"t18",title:"Upbeat Happy Corporate",artist:"Kornev Music",mood:"Happy",genre:"Corporate",duration:"",tags:["happy","upbeat","corporate","positive"],url:"https://shanekarimi-ops.github.io/judgeme/Music/kornevmusic-upbeat-happy-corporate-487426.mp3"},
+  {id:"t19",title:"Joyful Rhythm Walk Funk",artist:"Light Beats Music",mood:"Happy",genre:"Funk",duration:"",tags:["happy","joyful","funk","walk"],url:"https://shanekarimi-ops.github.io/judgeme/Music/lightbeatsmusic-joyful-rhythm-walk-funk-513936.mp3"},
+  {id:"t20",title:"Strong Character Fuzz Rock",artist:"Light Stock Music",mood:"Rock",genre:"Rock",duration:"",tags:["rock","strong","fuzz","sport"],url:"https://shanekarimi-ops.github.io/judgeme/Music/lightstockmusic-strong-character-powerful-fuzz-action-sport-rock-513742.mp3"},
+  {id:"t21",title:"Action Man Sport",artist:"Magpie Music",mood:"Hype",genre:"Rock",duration:"",tags:["hype","action","sport","rock"],url:"https://shanekarimi-ops.github.io/judgeme/Music/magpiemusic-action-man-the-action-sport-513684.mp3"},
+  {id:"t22",title:"Action Trailer Rock",artist:"Magpie Music",mood:"Dramatic",genre:"Rock",duration:"",tags:["dramatic","action","trailer","rock"],url:"https://shanekarimi-ops.github.io/judgeme/Music/magpiemusic-action-trailer-promo-rock-513687.mp3"},
+  {id:"t23",title:"Music Promotion",artist:"Miromax Music",mood:"Happy",genre:"Pop",duration:"",tags:["happy","promotion","pop","upbeat"],url:"https://shanekarimi-ops.github.io/judgeme/Music/miromaxmusic-music-promotion-no-copyright-513944.mp3"},
+  {id:"t24",title:"Future Design",artist:"Penguin Music",mood:"Chill",genre:"Electronic",duration:"",tags:["chill","future","design","electronic"],url:"https://shanekarimi-ops.github.io/judgeme/Music/penguinmusic-future-design-344320.mp3"},
+  {id:"t25",title:"Vlog Hip Hop",artist:"Produces Platinum",mood:"Hip Hop",genre:"Hip Hop",duration:"",tags:["hip hop","vlog","chill","beats"],url:"https://shanekarimi-ops.github.io/judgeme/Music/producesplatinum-vlog-hip-hop-483574.mp3"},
+  {id:"t26",title:"Last Point Beat Electronic",artist:"Raspberry Music",mood:"Chill",genre:"Electronic",duration:"",tags:["chill","beat","electronic","digital"],url:"https://shanekarimi-ops.github.io/judgeme/Music/raspberrymusic-the-last-point-beat-electronic-digital-394291.mp3"},
+  {id:"t27",title:"Comedy Cartoon Funny",artist:"Starostin",mood:"Funny",genre:"Comedy",duration:"",tags:["funny","comedy","cartoon","silly"],url:"https://shanekarimi-ops.github.io/judgeme/Music/starostin-comedy-cartoon-funny-background-music-492540.mp3"},
 ];
 
 
