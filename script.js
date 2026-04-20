@@ -401,11 +401,6 @@ async function loadFeed() {
   if (posts.length > 0) trackPostView(posts[0].id);
 }
 
-// Track if user has tapped/interacted — iOS requires this for auto-unmute
-let userHasInteracted = false;
-document.addEventListener("touchstart", () => { userHasInteracted = true; }, { once: false, passive: true });
-document.addEventListener("click", () => { userHasInteracted = true; }, { once: false, passive: true });
-
 function setupTikTokScroll(container) {
   let lastIdx = 0;
   container.addEventListener("scroll", () => {
@@ -420,40 +415,12 @@ function setupTikTokScroll(container) {
           else { vid.pause(); vid.currentTime = 0; }
         }
       });
-      // Track view + load jury count + play sound for newly visible post
+      // Track view + load jury count for newly visible post
       const visiblePost = posts[idx];
       if (visiblePost) {
         const pid = visiblePost.id.replace("feed-item-", "");
         trackPostView(pid);
         loadJuryPreview(pid);
-
-        const post = postsCache[pid];
-
-        // Stop previous music
-        stopFeedMusic();
-
-        // Auto-play music if post has it
-        if (post && post.music) {
-          try {
-            const music = typeof post.music === "string" ? JSON.parse(post.music) : post.music;
-            if (music && music.url) playFeedMusic(pid, music.url);
-          } catch(e) {}
-        }
-
-        // Auto-unmute video when user has interacted (tapped screen)
-        if (userHasInteracted && !post?.music) {
-          const vid = document.getElementById("vid-" + pid);
-          if (vid) {
-            document.querySelectorAll(".tiktok-post video").forEach(v => {
-              v.muted = true;
-              const ob = document.getElementById("mute-btn-" + v.id.replace("vid-",""));
-              if (ob) ob.textContent = "🔇";
-            });
-            vid.muted = false;
-            const muteBtn = document.getElementById("mute-btn-" + pid);
-            if (muteBtn) muteBtn.textContent = "🔊";
-          }
-        }
       }
     }
   }, { passive: true });
